@@ -1,0 +1,24 @@
+# binaires
+extraction
+extraction.exe
+tp1
+tp1.exe
+tp3
+tp3.exe
+*.o
+*.obj
+
+# sorties generees
+resultats/*
+!resultats/.gitkeep
+
+# systeme
+.DS_Store
+*:Zone.Identifier
+Thumbs.db
+
+# documentation de travail (non versionnee)
+docs/
+
+# sujet de l atelier (non versionne)
+sujet_Atelier_ImageBD.pdf
