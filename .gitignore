@@ -5,6 +5,8 @@ tp1
 tp1.exe
 tp3
 tp3.exe
+test_couleur
+test_couleur.exe
 *.o
 *.obj
 
@@ -22,3 +24,6 @@ docs/
 
 # sujet de l atelier (non versionne)
 sujet_Atelier_ImageBD.pdf
+
+# base d images (85 Mo) : partagee hors depot
+images/
