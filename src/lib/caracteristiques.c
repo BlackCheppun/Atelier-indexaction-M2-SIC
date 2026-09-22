@@ -107,20 +107,85 @@ void taux_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,
     if (taux_b) *taux_b = 0.0;
 }
 
+/* Saturation moyenne au sens HSV : moyenne de (max-min)/max sur les pixels
+ * suffisamment lumineux.
+ *   0.0 -> gris parfait (R=G=B partout)
+ *   1.0 -> couleurs pleinement saturees
+ * Les pixels sombres (max < SEUIL_PIXEL_SOMBRE) sont ecartes : la saturation
+ * y est indefinie (max == 0) ou numeriquement instable, un ecart d'un seul
+ * niveau y produisant deja un rapport eleve.                                */
 double saturation_moyenne(rgb8 **image, long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO : par pixel  s = (max(r,g,b) - min(r,g,b)) / max(r,g,b) si max>0 */
-    (void)image; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return 0.0;
+    double somme = 0.0;
+    long   nb_pixels_retenus = 0;
+    long   i, j;
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            /* en int : .r .g .b sont des byte non signes, et on soustrait */
+            int r = (int)image[i][j].r;
+            int g = (int)image[i][j].g;
+            int b = (int)image[i][j].b;
+
+            int mx = (r > g) ? r : g;
+            if (b > mx) mx = b;
+
+            if (mx < SEUIL_PIXEL_SOMBRE) continue;
+
+            int mn = (r < g) ? r : g;
+            if (b < mn) mn = b;
+
+            /* division flottante : en entiers elle vaudrait 0 partout */
+            somme += (double)(mx - mn) / (double)mx;
+            nb_pixels_retenus++;
+        }
+    }
+
+    if (nb_pixels_retenus == 0) return 0.0;   /* image entierement sombre */
+
+    return somme / (double)nb_pixels_retenus;
 }
 
+/* Decide si l'image est en couleur a partir de la PROPORTION de pixels
+ * colores (et non de la saturation moyenne, qui est aveugle aux petites
+ * zones colorees sur fond gris).
+ * Le taux est calcule ici meme, en une seule passe sur l'image.            */
 int image_est_couleur(rgb8 **image, long nrl, long nrh, long ncl, long nch,
-                      double seuil_saturation)
+                      double seuil_taux_colores)
 {
-    /* TODO : return saturation_moyenne(...) > seuil_saturation              */
-    (void)image; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    (void)seuil_saturation;
-    return 0;
+    long nb_colores  = 0;   /* pixels franchement colores                   */
+    long nb_pixels_retenus  = 0;   /* pixels assez lumineux pour etre juges        */
+    long i, j;
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            int r = (int)image[i][j].r;
+            int g = (int)image[i][j].g;
+            int b = (int)image[i][j].b;
+
+            int mx = (r > g) ? r : g;
+            if (b > mx) mx = b;
+
+            if (mx < SEUIL_PIXEL_SOMBRE) continue;
+
+            int mn = (r < g) ? r : g;
+            if (b < mn) mn = b;
+
+            nb_pixels_retenus++;
+
+            /* les deux conditions sont necessaires : l'ecart absolu ecarte
+               le bruit de chrominance, le rapport ecarte les teintes pales */
+            if ((mx - mn) > SEUIL_ECART_COLORE &&
+                (double)(mx - mn) / (double)mx > SEUIL_SATURATION_PIXEL) {
+                nb_colores++;
+            }
+        }
+    }
+
+    if (nb_pixels_retenus == 0) return 0;   /* image entierement sombre -> N&B     */
+
+    return ((double)nb_colores / (double)nb_pixels_retenus > seuil_taux_colores)
+           ? 1 : 0;
 }
 
 double entropie_histogramme(const double hist_norm[NB_NIVEAUX])
