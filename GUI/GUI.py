@@ -1,46 +1,66 @@
-"""GUI minimal — indexation C→Oracle et recherche par similarité."""
+"""GUI minimal — Recherche par similarité Oracle (Vue SQL)."""
 
 from __future__ import annotations
 
-import os
 import threading
 import tkinter as tk
-from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import messagebox, ttk
 
+# --- Configuration Base de données ---
 INSTANT_CLIENT = r"D:\Downloads\instantclient-basic-windows.x64-19.32.0.0.0dbru\instantclient_19_32"
 USER = "tp_indexation"
 PASSWORD = "123456"
 DSN = "localhost:1522/orcl"
-ORACLE_DIR = "IMG10"
+TABLE_NAME = "TP_INDEXATION.TEST_MULTIMEDIA"
 
-REPO = Path(__file__).resolve().parents[1]
+# Noms de colonnes (à ajuster selon la base de données réelle)
+COL_NOM = "NOM"
+COL_SIGNATURE = "SIGNATURE"
+
+COL_HISTO_R = "HISTO_R"
+COL_HISTO_G = "HISTO_G"
+COL_HISTO_B = "HISTO_B"
+COL_DENSITE = "DENSITE_CONTOURS"
+COL_ISCOLOR = "IS_COLOR"
+COL_TEXTURE = "TEXTURE"
+COL_LUMINOSITE = "LUMINOSITE"
+COL_SATURATION = "SATURATION"
 
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Indexation d'images")
-        self.geometry("780x520")
-        self.minsize(700, 460)
+        self.title("Recherche d'images - Comparaisons")
+        self.geometry("900x700")
+        self.minsize(800, 600)
 
         self.conn = None
-        self.query_path = ""
-        self.thumbs: list = []
+        self.cursor = None
 
-        self.status = tk.StringVar(value="Connexion…")
-        ttk.Label(self, textvariable=self.status).pack(anchor="w", padx=10, pady=(8, 0))
+        self.status = tk.StringVar(value="Connexion à Oracle en cours…")
+        ttk.Label(self, textvariable=self.status, relief="sunken", anchor="w").pack(side="bottom", fill="x")
 
-        nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True, padx=10, pady=8)
+        # Variables pour la sélection
+        self.var_image_req = tk.StringVar()
+        self.images_list = []
 
-        self.page_load = ttk.Frame(nb, padding=8)
-        self.page_search = ttk.Frame(nb, padding=8)
-        nb.add(self.page_load, text="Indexation")
-        nb.add(self.page_search, text="Recherche")
+        # Variables des poids (Sliders)
+        self.poids = {
+            "Oracle Couleur": tk.DoubleVar(value=0.25),
+            "Oracle Texture": tk.DoubleVar(value=0.25),
+            "Oracle Forme": tk.DoubleVar(value=0.25),
+            "Oracle Localisation": tk.DoubleVar(value=0.25),
+            "Histo R": tk.DoubleVar(value=0.0),
+            "Histo G": tk.DoubleVar(value=0.0),
+            "Histo B": tk.DoubleVar(value=0.0),
+            "Densité Contours": tk.DoubleVar(value=0.0),
+            "IsColor": tk.DoubleVar(value=0.0),
+            "Texture Maison": tk.DoubleVar(value=0.0),
+            "Luminosité": tk.DoubleVar(value=0.0),
+            "Saturation": tk.DoubleVar(value=0.0),
+        }
 
-        self._build_load()
-        self._build_search()
+        self._build_ui()
         threading.Thread(target=self._connect, daemon=True).start()
 
     # ------------------------------------------------------------------ connexion
@@ -50,130 +70,171 @@ class App(tk.Tk):
 
             oracledb.init_oracle_client(lib_dir=INSTANT_CLIENT)
             self.conn = oracledb.connect(user=USER, password=PASSWORD, dsn=DSN)
+            self.cursor = self.conn.cursor()
             self.after(0, lambda: self.status.set(f"Connecté — {USER}@{DSN}"))
-        except Exception as e:  # noqa: BLE001
+            self._fetch_images()
+        except Exception as e:
             self.after(0, lambda: self.status.set(f"Hors ligne — {e}"))
 
-    # ------------------------------------------------------------------ indexation
-    def _build_load(self) -> None:
-        row = ttk.Frame(self.page_load)
-        row.pack(fill="x")
-        ttk.Label(row, text="Dossier images").pack(side="left")
-        self.var_dir = tk.StringVar(value=str(REPO / "images"))
-        ttk.Entry(row, textvariable=self.var_dir).pack(side="left", fill="x", expand=True, padx=6)
-        ttk.Button(row, text="…", width=3, command=self._pick_dir).pack(side="left")
+    def _fetch_images(self) -> None:
+        try:
+            self.cursor.execute(f"SELECT {COL_NOM} FROM {TABLE_NAME} ORDER BY {COL_NOM}")
+            rows = self.cursor.fetchall()
+            self.images_list = [r[0] for r in rows]
+            self.after(0, self._update_cb_images)
+        except Exception as e:
+            print("Erreur fetch images:", e)
 
-        ttk.Button(self.page_load, text="Indexer (C + Oracle)", command=self._indexer).pack(
-            anchor="w", pady=8
-        )
+    def _update_cb_images(self):
+        self.cb_images['values'] = self.images_list
+        if self.images_list:
+            self.cb_images.current(0)
 
-        self.log = tk.Text(self.page_load, height=18, wrap="word")
-        self.log.pack(fill="both", expand=True)
-        self._log("Un bouton : extraction C puis import Oracle (images, signatures, descripteurs).")
+    # ------------------------------------------------------------------ Interface
+    def _build_ui(self) -> None:
+        main_frame = ttk.Frame(self, padding=10)
+        main_frame.pack(fill="both", expand=True)
 
-    def _pick_dir(self) -> None:
-        p = filedialog.askdirectory(initialdir=self.var_dir.get() or ".")
-        if p:
-            self.var_dir.set(p)
+        # 1. Sélection de l'image requête
+        frame_req = ttk.LabelFrame(main_frame, text="1. Image Requête (depuis Oracle)", padding=10)
+        frame_req.pack(fill="x", pady=(0, 10))
 
-    def _log(self, msg: str) -> None:
-        self.log.insert("end", msg.rstrip() + "\n")
-        self.log.see("end")
+        ttk.Label(frame_req, text="Sélectionnez l'image :").pack(side="left", padx=(0, 10))
+        self.cb_images = ttk.Combobox(frame_req, textvariable=self.var_image_req, state="readonly", width=40)
+        self.cb_images.pack(side="left")
 
-    def _indexer(self) -> None:
-        dossier = self.var_dir.get()
+        # 2. Sliders (Poids)
+        frame_sliders = ttk.LabelFrame(main_frame, text="2. Pondérations des caractéristiques", padding=10)
+        frame_sliders.pack(fill="x", pady=(0, 10))
 
-        def work():
-            self.after(0, lambda: self._log(f"Dossier : {dossier}"))
-            self.after(0, lambda: self._log(f"DIRECTORY Oracle : {ORACLE_DIR}"))
-            # TODO : lancer le binaire C, puis importFrom / generateSignature / CSV
-            self.after(0, lambda: self._log("(stub) extraction C → CSV"))
-            self.after(0, lambda: self._log("(stub) import images + signatures"))
-            self.after(0, lambda: self._log("(stub) chargement des descripteurs"))
-            self.after(0, lambda: self._log("Terminé."))
+        # Sous-frame pour Oracle
+        frame_ora = ttk.LabelFrame(frame_sliders, text="Signatures natives Oracle (OrdImage)", padding=10)
+        frame_ora.pack(side="left", fill="both", expand=True, padx=(0, 5))
+        self._build_sliders(frame_ora, ["Oracle Couleur", "Oracle Texture", "Oracle Forme", "Oracle Localisation"])
 
-        threading.Thread(target=work, daemon=True).start()
+        # Sous-frame pour Maison
+        frame_maison = ttk.LabelFrame(frame_sliders, text="Caractéristiques extraites (Maison)", padding=10)
+        frame_maison.pack(side="left", fill="both", expand=True, padx=(5, 0))
+        self._build_sliders(frame_maison, [
+            "Histo R", "Histo G", "Histo B", "Densité Contours",
+            "IsColor", "Texture Maison", "Luminosité", "Saturation"
+        ])
 
-    # ------------------------------------------------------------------ recherche
-    def _build_search(self) -> None:
-        row = ttk.Frame(self.page_search)
-        row.pack(fill="x")
-        ttk.Button(row, text="Image requête…", command=self._pick_query).pack(side="left")
-        self.lbl_query = ttk.Label(row, text="aucune")
-        self.lbl_query.pack(side="left", padx=8)
+        # 3. Actions et Résultats
+        frame_actions = ttk.Frame(main_frame)
+        frame_actions.pack(fill="x", pady=(0, 10))
+        
+        ttk.Button(frame_actions, text="Créer Vue & Rechercher", command=self._search).pack(side="left")
+        
+        self.tree = ttk.Treeview(main_frame, columns=("nom", "score"), show="headings")
+        self.tree.heading("nom", text="Image")
+        self.tree.heading("score", text="Score (Distance / Différence)")
+        self.tree.column("nom", width=300)
+        self.tree.column("score", width=150)
+        self.tree.pack(fill="both", expand=True)
 
-        opts = ttk.Frame(self.page_search)
-        opts.pack(fill="x", pady=8)
-        self.var_method = tk.StringVar(value="both")
-        ttk.Radiobutton(opts, text="Oracle", value="oracle", variable=self.var_method).pack(side="left")
-        ttk.Radiobutton(opts, text="Maison", value="maison", variable=self.var_method).pack(side="left", padx=8)
-        ttk.Radiobutton(opts, text="Les deux", value="both", variable=self.var_method).pack(side="left")
-        ttk.Label(opts, text="Top").pack(side="left", padx=(16, 4))
-        self.var_k = tk.IntVar(value=5)
-        ttk.Spinbox(opts, from_=1, to=20, textvariable=self.var_k, width=4).pack(side="left")
-        ttk.Button(opts, text="Rechercher", command=self._search).pack(side="left", padx=12)
+    def _build_sliders(self, parent, labels):
+        for idx, label in enumerate(labels):
+            row = ttk.Frame(parent)
+            row.pack(fill="x", pady=2)
+            ttk.Label(row, text=label, width=18).pack(side="left")
+            
+            var = self.poids[label]
+            scale = ttk.Scale(row, from_=0.0, to=10.0, variable=var, orient="horizontal")
+            scale.pack(side="left", fill="x", expand=True, padx=5)
+            
+            val_lbl = ttk.Label(row, width=5)
+            val_lbl.pack(side="left")
+            # Callback pour màj de l'affichage de la valeur
+            def update_lbl(v, l=val_lbl, var=var):
+                l.config(text=f"{var.get():.1f}")
+            scale.configure(command=update_lbl)
+            update_lbl(None) # Init
 
-        filtres = ttk.Frame(self.page_search)
-        filtres.pack(fill="x")
-        ttk.Button(filtres, text="Peu de vert, beaucoup de rouge", command=lambda: self._filtre("rouge")).pack(
-            side="left"
-        )
-        ttk.Button(filtres, text="N&B", command=lambda: self._filtre("nb")).pack(side="left", padx=4)
-        ttk.Button(filtres, text="Texturées", command=lambda: self._filtre("tex")).pack(side="left")
-
-        self.lbl_time = ttk.Label(self.page_search, text="")
-        self.lbl_time.pack(anchor="w", pady=(8, 2))
-
-        self.tree = ttk.Treeview(self.page_search, columns=("source", "nom", "score"), show="headings")
-        self.tree.heading("source", text="source")
-        self.tree.heading("nom", text="image")
-        self.tree.heading("score", text="score")
-        self.tree.column("source", width=140)
-        self.tree.column("nom", width=280)
-        self.tree.column("score", width=80)
-        self.tree.pack(fill="both", expand=True, pady=(4, 0))
-
-    def _pick_query(self) -> None:
-        p = filedialog.askopenfilename(
-            filetypes=[("Images", "*.jpg *.jpeg *.png *.ppm *.pgm *.gif"), ("Tous", "*.*")]
-        )
-        if p:
-            self.query_path = p
-            self.lbl_query.configure(text=os.path.basename(p))
-
-    def _fill(self, rows: list[tuple[str, str, str]], timing: str = "") -> None:
-        self.tree.delete(*self.tree.get_children())
-        for r in rows:
-            self.tree.insert("", "end", values=r)
-        self.lbl_time.configure(text=timing)
-
+    # ------------------------------------------------------------------ Recherche
     def _search(self) -> None:
-        if not self.query_path:
-            messagebox.showinfo("Recherche", "Choisissez une image.")
+        if not self.conn or not self.cursor:
+            messagebox.showerror("Erreur", "Non connecté à la base de données.")
             return
-        method = self.var_method.get()
-        k = int(self.var_k.get())
+
+        image_req = self.var_image_req.get()
+        if not image_req:
+            messagebox.showwarning("Attention", "Veuillez sélectionner une image requête.")
+            return
+
+        w_color = self.poids["Oracle Couleur"].get()
+        w_texture = self.poids["Oracle Texture"].get()
+        w_shape = self.poids["Oracle Forme"].get()
+        w_loc = self.poids["Oracle Localisation"].get()
+
+        w_hr = self.poids["Histo R"].get()
+        w_hg = self.poids["Histo G"].get()
+        w_hb = self.poids["Histo B"].get()
+        w_dens = self.poids["Densité Contours"].get()
+        w_isc = self.poids["IsColor"].get()
+        w_texm = self.poids["Texture Maison"].get()
+        w_lum = self.poids["Luminosité"].get()
+        w_sat = self.poids["Saturation"].get()
+
+        # Construction de la requête SQL (Création de la vue)
+        # On calcule une distance : 0 est identique, plus c'est grand moins c'est similaire.
+        oracle_weights = f"color={w_color} texture={w_texture} shape={w_shape} location={w_loc}"
+        
+        # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
+        # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
+        sql_create_view = f"""
+            CREATE OR REPLACE VIEW VUE_COMPARAISON AS
+            SELECT t2.{COL_NOM} as NOM,
+                   (
+                       -- Score Oracle (retourne une distance)
+                       ORDSYS.SI_Score(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')
+                       
+                       -- Ajout des différences sur les caractéristiques maison pondérées
+                       -- Décommentez/Ajustez ces lignes lorsque les colonnes existent
+                       /*
+                       + {w_hr} * ABS(NVL(t1.{COL_HISTO_R},0) - NVL(t2.{COL_HISTO_R},0))
+                       + {w_hg} * ABS(NVL(t1.{COL_HISTO_G},0) - NVL(t2.{COL_HISTO_G},0))
+                       + {w_hb} * ABS(NVL(t1.{COL_HISTO_B},0) - NVL(t2.{COL_HISTO_B},0))
+                       + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))
+                       + {w_isc} * ABS(NVL(t1.{COL_ISCOLOR},0) - NVL(t2.{COL_ISCOLOR},0))
+                       + {w_texm} * ABS(NVL(t1.{COL_TEXTURE},0) - NVL(t2.{COL_TEXTURE},0))
+                       + {w_lum} * ABS(NVL(t1.{COL_LUMINOSITE},0) - NVL(t2.{COL_LUMINOSITE},0))
+                       + {w_sat} * ABS(NVL(t1.{COL_SATURATION},0) - NVL(t2.{COL_SATURATION},0))
+                       */
+                   ) AS SCORE
+            FROM {TABLE_NAME} t1, {TABLE_NAME} t2
+            WHERE t1.{COL_NOM} = '{image_req}' 
+              AND t2.{COL_NOM} != '{image_req}'
+        """
 
         def work():
-            rows = []
-            times = []
-            if method in ("oracle", "both"):
-                rows += [("Oracle", "img01.jpg", "92.4"), ("Oracle", "img04.jpg", "81.1")][:k]
-                times.append("Oracle 12 ms")
-            if method in ("maison", "both"):
-                rows += [("Maison", "img01.jpg", "0.12"), ("Maison", "img02.jpg", "0.19")][:k]
-                times.append("Maison 8 ms")
-            self.after(0, lambda: self._fill(rows, "  |  ".join(times)))
+            try:
+                self.after(0, lambda: self.status.set("Création de la vue en cours..."))
+                # Création de la vue
+                self.cursor.execute(sql_create_view)
+                
+                # Sélection depuis la vue
+                self.after(0, lambda: self.status.set("Requête sur la vue en cours..."))
+                self.cursor.execute("SELECT NOM, SCORE FROM VUE_COMPARAISON ORDER BY SCORE ASC")
+                rows = self.cursor.fetchall()
+                
+                self.after(0, lambda: self._fill_tree(rows))
+                self.after(0, lambda: self.status.set(f"Recherche terminée ({len(rows)} résultats)."))
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Erreur SQL", str(e)))
+                self.after(0, lambda: self.status.set("Erreur lors de la recherche."))
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _filtre(self, kind: str) -> None:
-        data = {
-            "rouge": [("Filtre", "rouge_01.jpg", "taux_r élevé")],
-            "nb": [("Filtre", "scan.pgm", "N&B")],
-            "tex": [("Filtre", "tex_01.jpg", "gradient élevé")],
-        }
-        self._fill(data.get(kind, []), "requête sur caractéristiques maison")
+    def _fill_tree(self, rows):
+        # Nettoyage
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        # Remplissage
+        for r in rows:
+            # r[0] = Nom, r[1] = Score
+            score_formatted = f"{r[1]:.4f}" if r[1] is not None else "N/A"
+            self.tree.insert("", "end", values=(r[0], score_formatted))
 
 
 if __name__ == "__main__":
