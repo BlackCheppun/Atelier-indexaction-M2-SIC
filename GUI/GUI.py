@@ -11,20 +11,20 @@ INSTANT_CLIENT = r"D:\Downloads\instantclient-basic-windows.x64-19.32.0.0.0dbru\
 USER = "tp_indexation"
 PASSWORD = "123456"
 DSN = "localhost:1522/orcl"
-TABLE_NAME = "TP_INDEXATION.TEST_MULTIMEDIA"
+TABLE_NAME = "TP_INDEXATION.IMAGES"
 
 # Noms de colonnes (à ajuster selon la base de données réelle)
-COL_NOM = "NOM"
-COL_SIGNATURE = "SIGNATURE"
+COL_NOM = "nom"
+COL_SIGNATURE = "signature"
 
-COL_HISTO_R = "HISTO_R"
-COL_HISTO_G = "HISTO_G"
-COL_HISTO_B = "HISTO_B"
-COL_DENSITE = "DENSITE_CONTOURS"
-COL_ISCOLOR = "IS_COLOR"
-COL_TEXTURE = "TEXTURE"
-COL_LUMINOSITE = "LUMINOSITE"
-COL_SATURATION = "SATURATION"
+COL_HISTO_R = "histo_r"
+COL_HISTO_G = "histo_g"
+COL_HISTO_B = "histo_b"
+COL_DENSITE = "densite_contours"
+COL_ISCOLOR = "is_color"
+COL_TEXTURE = "texture"
+COL_LUMINOSITE = "luminosite_moyenne"
+COL_SATURATION = "saturation_moyenne"
 
 
 class App(tk.Tk):
@@ -178,7 +178,7 @@ class App(tk.Tk):
 
         # Construction de la requête SQL (Création de la vue)
         # On calcule une distance : 0 est identique, plus c'est grand moins c'est similaire.
-        oracle_weights = f"color={w_color} texture={w_texture} shape={w_shape} location={w_loc}"
+        oracle_weights = f"color={w_color}, texture={w_texture}, shape={w_shape}, location={w_loc}"
         
         # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
         # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
@@ -187,7 +187,7 @@ class App(tk.Tk):
             SELECT t2.{COL_NOM} as NOM,
                    (
                        -- Score Oracle (retourne une distance)
-                       ORDSYS.SI_Score(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')
+                       ORDSYS.ORDImageSignature.evaluateScore(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')
                        
                        -- Ajout des différences sur les caractéristiques maison pondérées
                        -- Décommentez/Ajustez ces lignes lorsque les colonnes existent
