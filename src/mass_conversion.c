@@ -30,7 +30,7 @@ void formater_histogramme(const double hist[NB_NIVEAUX], char *buffer, size_t ma
     }
 }
 
-void traiter_image(int id_image, const char *chemin, const char *nom_fichier) {
+void traiter_image(const char *chemin, const char *nom_fichier) {
     int est_ppm = (strstr(nom_fichier, ".ppm") != NULL);
 
     if (!est_ppm) return;
@@ -93,9 +93,9 @@ void traiter_image(int id_image, const char *chemin, const char *nom_fichier) {
     formater_histogramme(hist_norm_b, str_hb, sizeof(str_hb));
 
     printf("INSERT INTO TP_INDEXATION.TEST_MULTIMEDIA \n");
-    printf("  (ID_IMAGE, NOM, IMAGE, SIGNATURE, HISTO_GRIS, HISTO_R, HISTO_G, HISTO_B, DENSITE_CONTOURS, TEXTURE, LUMINOSITE_MOYENNE, SATURATION_MOYENNE, IS_COLOR)\n");
+    printf("  (NOM, IMAGE, SIGNATURE, HISTO_GRIS, HISTO_R, HISTO_G, HISTO_B, DENSITE_CONTOURS, TEXTURE, LUMINOSITE_MOYENNE, SATURATION_MOYENNE, IS_COLOR)\n");
     printf("VALUES \n");
-    printf("  (%d, '%s', ORDSYS.ORDImage.init(), ORDSYS.ORDImageSignature.init(),\n", id_image, nom_fichier);
+    printf("  ('%s', ORDSYS.ORDImage.init(), ORDSYS.ORDImageSignature.init(),\n", nom_fichier);
     printf("   HISTO_VARRAY(%s),\n", str_hg);
     printf("   HISTO_VARRAY(%s),\n", str_hr);
     printf("   HISTO_VARRAY(%s),\n", str_hg_color);
@@ -120,7 +120,6 @@ int main(int argc, char *argv[]) {
     DIR *dir;
     struct dirent *ent;
     char chemin_complet[1024];
-    int current_id = 1;
 
     if ((dir = opendir(argv[1])) != NULL) {
         /* Parcourir tous les fichiers du repertoire */
@@ -131,7 +130,7 @@ int main(int argc, char *argv[]) {
             }
 
             snprintf(chemin_complet, sizeof(chemin_complet), "%s/%s", argv[1], ent->d_name);
-            traiter_image(current_id++, chemin_complet, ent->d_name);
+            traiter_image(chemin_complet, ent->d_name);
         }
         closedir(dir);
     } else {
