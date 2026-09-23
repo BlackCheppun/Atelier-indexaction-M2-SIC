@@ -101,15 +101,17 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
         strcpy(ext, ".jpg");
     }
 
-    fprintf(f_sql, "INSERT INTO TP_INDEXATION.TEST_MULTIMEDIA \n");
-    fprintf(f_sql, "  (NOM, IMAGE, SIGNATURE, HISTO_GRIS, HISTO_R, HISTO_G, HISTO_B, DENSITE_CONTOURS, TEXTURE, LUMINOSITE_MOYENNE, SATURATION_MOYENNE, IS_COLOR)\n");
-    fprintf(f_sql, "VALUES \n");
-    fprintf(f_sql, "  ('%s', ORDSYS.ORDImage.init(), ORDSYS.ORDImageSignature.init(),\n", nom_db);
-    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hg);
-    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hr);
-    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hg_color);
-    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hb);
-    fprintf(f_sql, "   %.6f, 0, 0, 0, 1);\n\n", densite);
+    fprintf(f_sql, "UPDATE TP_INDEXATION.TEST_MULTIMEDIA SET \n");
+    fprintf(f_sql, "  HISTO_GRIS = HISTO_VARRAY(%s),\n", str_hg);
+    fprintf(f_sql, "  HISTO_R = HISTO_VARRAY(%s),\n", str_hr);
+    fprintf(f_sql, "  HISTO_G = HISTO_VARRAY(%s),\n", str_hg_color);
+    fprintf(f_sql, "  HISTO_B = HISTO_VARRAY(%s),\n", str_hb);
+    fprintf(f_sql, "  DENSITE_CONTOURS = %.6f,\n", densite);
+    fprintf(f_sql, "  TEXTURE = 0,\n");
+    fprintf(f_sql, "  LUMINOSITE_MOYENNE = 0,\n");
+    fprintf(f_sql, "  SATURATION_MOYENNE = 0,\n");
+    fprintf(f_sql, "  IS_COLOR = 1\n");
+    fprintf(f_sql, "WHERE NOM = '%s';\n\n", nom_db);
 
     /* Liberation memoire */
     if (I_gris) free_bmatrix(I_gris, nrl, nrh, ncl, nch);
