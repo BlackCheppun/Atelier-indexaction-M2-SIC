@@ -140,14 +140,14 @@ class App(tk.Tk):
             ttk.Label(row, text=label, width=18).pack(side="left")
             
             var = self.poids[label]
-            scale = ttk.Scale(row, from_=0.0, to=10.0, variable=var, orient="horizontal")
+            scale = ttk.Scale(row, from_=0.0, to=1.0, variable=var, orient="horizontal")
             scale.pack(side="left", fill="x", expand=True, padx=5)
             
             val_lbl = ttk.Label(row, width=5)
             val_lbl.pack(side="left")
             # Callback pour màj de l'affichage de la valeur
             def update_lbl(v, l=val_lbl, var=var):
-                l.config(text=f"{var.get():.1f}")
+                l.config(text=f"{var.get():.2f}")
             scale.configure(command=update_lbl)
             update_lbl(None) # Init
 
@@ -178,7 +178,12 @@ class App(tk.Tk):
 
         # Construction de la requête SQL (Sélection directe)
         # On calcule une distance : 0 est identique, plus c'est grand moins c'est similaire.
-        oracle_weights = f"color={w_color}, texture={w_texture}, shape={w_shape}, location={w_loc}"
+        oracle_weights = (
+            f'color="{w_color:.1f}",'
+            f'texture="{w_texture:.1f}",'
+            f'shape="{w_shape:.1f}",'
+            f'location="{w_loc:.1f}"'
+        )
         
         # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
         # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
