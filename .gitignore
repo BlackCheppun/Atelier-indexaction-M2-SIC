@@ -5,6 +5,8 @@ tp1
 tp1.exe
 tp3
 tp3.exe
+test_couleur
+test_couleur.exe
 *.o
 *.obj
 
@@ -23,6 +25,7 @@ docs/
 # sujet de l atelier (non versionne)
 sujet_Atelier_ImageBD.pdf
 
+<<<<<<< HEAD
 
 Makefile
 conteur_test.exe
@@ -30,3 +33,7 @@ mass_conversion.exe
 requetes_oracle.sql
 tp_histogramme.exe
 
+=======
+# base d images (85 Mo) : partagee hors depot
+images/
+>>>>>>> cf06d090687cd9a27f943629233d95256a95d7e9

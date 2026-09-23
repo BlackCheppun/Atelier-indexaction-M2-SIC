@@ -14,6 +14,23 @@
 #define NB_NIVEAUX 256   /* nombre de classes des histogrammes             */
 #define NB_BINS    16    /* histogramme reduit (16 classes) pour la base    */
 
+/* Un pixel dont max(R,G,B) est sous ce seuil est trop sombre pour que sa
+ * saturation ait un sens : on l'ecarte des calculs couleur.                */
+#define SEUIL_PIXEL_SOMBRE 20
+
+/* Un pixel est dit "colore" s'il satisfait LES DEUX conditions :
+ *   - ecart absolu  (max - min) > SEUIL_ECART_COLORE
+ *   - saturation    (max - min) / max > SEUIL_SATURATION_PIXEL
+ * La condition absolue filtre le bruit de chrominance des scans et des JPEG
+ * (amplitude de quelques niveaux), qui produit un rapport eleve dans les
+ * zones sombres alors que le pixel est gris a l'oeil.                      */
+#define SEUIL_ECART_COLORE      12
+#define SEUIL_SATURATION_PIXEL  0.12
+
+/* Proportion de pixels colores a partir de laquelle l'image est declaree
+ * en couleur (valeur par defaut a passer a image_est_couleur).             */
+#define SEUIL_TAUX_COLORE       0.02
+
 /* --------------------------------------------------------------------------
  *  Le descripteur d'une image : une ligne de la future table ORACLE.
  * ------------------------------------------------------------------------*/
@@ -99,9 +116,14 @@ void taux_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,
 double saturation_moyenne(rgb8 **image, long nrl, long nrh, long ncl, long nch);
 
 /* 1 si l'image est consideree couleur, 0 si noir et blanc.
- * Critere propose : saturation_moyenne > seuil (ex. 0.10).                 */
+ * La decision repose sur la PROPORTION de pixels colores, pas sur la
+ * saturation moyenne : une image massivement grise comportant une petite
+ * zone franchement coloree (capture d'ecran, objet colore sur fond gris)
+ * garde une moyenne faible et serait classee N&B a tort.
+ * Le taux est calcule directement ici, en une seule passe.
+ * seuil_taux_colores : proportion declenchante, ex. SEUIL_TAUX_COLORE.     */
 int image_est_couleur(rgb8 **image, long nrl, long nrh, long ncl, long nch,
-                      double seuil_saturation);
+                      double seuil_taux_colores);
 
 /* Entropie de Shannon de l'histogramme normalise : -somme(p*log2(p)).      */
 double entropie_histogramme(const double hist_norm[NB_NIVEAUX]);
