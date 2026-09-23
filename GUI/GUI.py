@@ -187,7 +187,10 @@ class App(tk.Tk):
         
         # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
         # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
-        score_expr = f"ORDSYS.ORDImageSignature.evaluateScore(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')"
+        if w_color > 0 or w_texture > 0 or w_shape > 0 or w_loc > 0:
+            score_expr = f"ORDSYS.ORDImageSignature.evaluateScore(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')"
+        else:
+            score_expr = "0"
         
         if w_hr > 0:
             score_expr += f"\n                       + {w_hr} * bhattacharyya_distance(t1.{COL_HISTO_R}, t2.{COL_HISTO_R})"
