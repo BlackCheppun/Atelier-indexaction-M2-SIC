@@ -30,7 +30,7 @@ void formater_histogramme(const double hist[NB_NIVEAUX], char *buffer, size_t ma
     }
 }
 
-void traiter_image(const char *chemin, const char *nom_fichier) {
+void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
     int est_ppm = (strstr(nom_fichier, ".ppm") != NULL);
 
     if (!est_ppm) return;
@@ -92,15 +92,24 @@ void traiter_image(const char *chemin, const char *nom_fichier) {
     formater_histogramme(hist_norm_g, str_hg_color, sizeof(str_hg_color));
     formater_histogramme(hist_norm_b, str_hb, sizeof(str_hb));
 
-    printf("INSERT INTO TP_INDEXATION.TEST_MULTIMEDIA \n");
-    printf("  (NOM, IMAGE, SIGNATURE, HISTO_GRIS, HISTO_R, HISTO_G, HISTO_B, DENSITE_CONTOURS, TEXTURE, LUMINOSITE_MOYENNE, SATURATION_MOYENNE, IS_COLOR)\n");
-    printf("VALUES \n");
-    printf("  ('%s', ORDSYS.ORDImage.init(), ORDSYS.ORDImageSignature.init(),\n", nom_fichier);
-    printf("   HISTO_VARRAY(%s),\n", str_hg);
-    printf("   HISTO_VARRAY(%s),\n", str_hr);
-    printf("   HISTO_VARRAY(%s),\n", str_hg_color);
-    printf("   HISTO_VARRAY(%s),\n", str_hb);
-    printf("   %.6f, 0, 0, 0, 1);\n\n", densite);
+    /* Remplacement de .ppm par .jpg pour la base de données */
+    char nom_db[256];
+    strncpy(nom_db, nom_fichier, sizeof(nom_db));
+    nom_db[sizeof(nom_db) - 1] = '\0';
+    char *ext = strstr(nom_db, ".ppm");
+    if (ext != NULL) {
+        strcpy(ext, ".jpg");
+    }
+
+    fprintf(f_sql, "INSERT INTO TP_INDEXATION.TEST_MULTIMEDIA \n");
+    fprintf(f_sql, "  (NOM, IMAGE, SIGNATURE, HISTO_GRIS, HISTO_R, HISTO_G, HISTO_B, DENSITE_CONTOURS, TEXTURE, LUMINOSITE_MOYENNE, SATURATION_MOYENNE, IS_COLOR)\n");
+    fprintf(f_sql, "VALUES \n");
+    fprintf(f_sql, "  ('%s', ORDSYS.ORDImage.init(), ORDSYS.ORDImageSignature.init(),\n", nom_db);
+    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hg);
+    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hr);
+    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hg_color);
+    fprintf(f_sql, "   HISTO_VARRAY(%s),\n", str_hb);
+    fprintf(f_sql, "   %.6f, 0, 0, 0, 1);\n\n", densite);
 
     /* Liberation memoire */
     if (I_gris) free_bmatrix(I_gris, nrl, nrh, ncl, nch);
@@ -121,6 +130,12 @@ int main(int argc, char *argv[]) {
     struct dirent *ent;
     char chemin_complet[1024];
 
+    FILE *f_sql = fopen("requetes_oracle.sql", "w");
+    if (!f_sql) {
+        perror("Impossible de creer le fichier requetes_oracle.sql");
+        return EXIT_FAILURE;
+    }
+
     if ((dir = opendir(argv[1])) != NULL) {
         /* Parcourir tous les fichiers du repertoire */
         while ((ent = readdir(dir)) != NULL) {
@@ -130,12 +145,26 @@ int main(int argc, char *argv[]) {
             }
 
             snprintf(chemin_complet, sizeof(chemin_complet), "%s/%s", argv[1], ent->d_name);
-            traiter_image(chemin_complet, ent->d_name);
+            traiter_image(f_sql, chemin_complet, ent->d_name);
         }
         closedir(dir);
     } else {
         perror("Impossible d'ouvrir le dossier");
+        fclose(f_sql);
         return EXIT_FAILURE;
+    }
+
+    fprintf(f_sql, "COMMIT;\nEXIT;\n");
+    fclose(f_sql);
+
+    printf("Fichier requetes_oracle.sql genere avec succes.\n");
+    printf("Lancement de l'insertion dans Oracle via sqlplus...\n");
+    
+    int ret = system("sqlplus tp_indexation/123456@localhost:1522/orcl @requetes_oracle.sql");
+    if (ret == 0) {
+        printf("Insertion terminee.\n");
+    } else {
+        printf("Erreur lors de l'insertion via sqlplus.\n");
     }
 
     return 0;
