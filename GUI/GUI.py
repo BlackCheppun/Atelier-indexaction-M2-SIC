@@ -192,9 +192,9 @@ class App(tk.Tk):
                        -- Ajout des différences sur les caractéristiques maison pondérées
                        -- Décommentez/Ajustez ces lignes lorsque les colonnes existent
                        /*
-                       + {w_hr} * ABS(NVL(t1.{COL_HISTO_R},0) - NVL(t2.{COL_HISTO_R},0))
-                       + {w_hg} * ABS(NVL(t1.{COL_HISTO_G},0) - NVL(t2.{COL_HISTO_G},0))
-                       + {w_hb} * ABS(NVL(t1.{COL_HISTO_B},0) - NVL(t2.{COL_HISTO_B},0))
+                       + {w_hr} * bhattacharyya_distance(t1.{COL_HISTO_R}, t2.{COL_HISTO_R})
+                       + {w_hg} * bhattacharyya_distance(t1.{COL_HISTO_G}, t2.{COL_HISTO_G})
+                       + {w_hb} * bhattacharyya_distance(t1.{COL_HISTO_B}, t2.{COL_HISTO_B})
                        + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))
                        + {w_isc} * ABS(NVL(t1.{COL_ISCOLOR},0) - NVL(t2.{COL_ISCOLOR},0))
                        + {w_texm} * ABS(NVL(t1.{COL_TEXTURE},0) - NVL(t2.{COL_TEXTURE},0))
