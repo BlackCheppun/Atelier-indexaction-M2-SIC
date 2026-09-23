@@ -23,23 +23,51 @@
 void histogramme_gris(byte **image, long nrl, long nrh, long ncl, long nch,
                       long hist[NB_NIVEAUX])
 {
-    /* TODO : mettre hist[] a 0 puis incrementer hist[ image[i][j] ]         */
-    (void)image; (void)nrl; (void)nrh; (void)ncl; (void)nch; (void)hist;
+    long i, j;
+
+    /* 1. Initialisation : mettre tout l'histogramme à 0 */
+    for (i = 0; i < NB_NIVEAUX; i++) {
+        hist[i] = 0;
+    }
+
+    /* 2. Comptage : on incrémente la case correspondant à la valeur du pixel */
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            hist[image[i][j]]++;
+        }
+    }
 }
 
 void histogramme_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,
                      long hr[NB_NIVEAUX], long hg[NB_NIVEAUX], long hb[NB_NIVEAUX])
 {
-    /* TODO : idem sur les 3 canaux .r .g .b                                 */
-    (void)image; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    (void)hr; (void)hg; (void)hb;
+    long i, j;
+
+    /* 1. Initialisation */
+    for (i = 0; i < NB_NIVEAUX; i++) {
+        hr[i] = 0;
+        hg[i] = 0;
+        hb[i] = 0;
+    }
+
+    /* 2. Comptage pour chaque canal */
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            hr[image[i][j].r]++;
+            hg[image[i][j].g]++;
+            hb[image[i][j].b]++;
+        }
+    }
 }
 
 void normaliser_histogramme(const long hist[NB_NIVEAUX], long nb_pixels,
                             double hist_norm[NB_NIVEAUX])
 {
-    /* TODO : hist_norm[k] = hist[k] / (double)nb_pixels                     */
-    (void)hist; (void)nb_pixels; (void)hist_norm;
+    int i;
+    /* Division par le nombre total de pixels pour avoir des fréquences */
+    for (i = 0; i < NB_NIVEAUX; i++) {
+        hist_norm[i] = (double)hist[i] / (double)nb_pixels;
+    }
 }
 
 void reduire_histogramme(const double hist_norm[NB_NIVEAUX],
@@ -53,8 +81,8 @@ int sauver_histogramme_txt(const long hist[NB_NIVEAUX], const char *fichier)
 {
     /* TODO : ecrire NB_NIVEAUX lignes "niveau <tab> effectif"               */
     (void)hist; (void)fichier;
-    return -1;
-}
+        return -1;
+    }
 
 /* ==========================================================================
  *  Caracteristiques scalaires
@@ -92,9 +120,17 @@ double ecart_type_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch,
 
 long compter_pixels_contour(byte **contours, long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO : compter les pixels a 255                                       */
-    (void)contours; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return 0;
+    long count = 0;
+    long i, j;
+    
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            if (contours[i][j] == 255) {
+                count++;
+            }
+        }
+    }
+    return count;
 }
 
 void taux_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,

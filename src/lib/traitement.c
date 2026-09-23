@@ -107,46 +107,109 @@ byte **binarisation(byte **image, int seuil,
 int **convolution_signee(byte **image, long nrl, long nrh, long ncl, long nch,
                          int masque[3][3], int diviseur)
 {
-    /* TODO :
-     *  - allouer   int **res = imatrix(nrl, nrh, ncl, nch);
-     *  - bords (i == nrl/nrh, j == ncl/nch) : mettre 0 (pas de voisinage)
-     *  - interieur : somme des produits, division par diviseur si != 0,
-     *    PAS de abs(), PAS de saturation -> on garde le signe.
-     */
-    (void)image; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    (void)masque; (void)diviseur;
-    return NULL;
+    int **res = imatrix(nrl, nrh, ncl, nch);
+    int i, j, k, l;
+
+    /* Interieur */
+    for (i = nrl + 1; i <= nrh - 1; i++) {
+        for (j = ncl + 1; j <= nch - 1; j++) {
+            int somme = 0;
+            for (k = 0; k < 3; k++) {
+                for (l = 0; l < 3; l++) {
+                    somme += (int)image[i - 1 + k][j - 1 + l] * masque[k][l];
+                }
+            }
+            if (diviseur != 0) {
+                somme = somme / diviseur;
+            }
+            res[i][j] = somme; /* Pas de valeur absolue, pas de saturation */
+        }
+    }
+
+    /* Bords : mettre 0 (pas de calcul possible) */
+    for (j = ncl; j <= nch; j++) {
+        res[nrl][j] = 0;
+        res[nrh][j] = 0;
+    }
+    for (i = nrl; i <= nrh; i++) {
+        res[i][ncl] = 0;
+        res[i][nch] = 0;
+    }
+
+    return res;
 }
 
 int **norme_gradient(int **Ix, int **Iy, long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO : res[i][j] = (int)round(sqrt(Ix^2 + Iy^2))                      */
-    (void)Ix; (void)Iy; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return NULL;
+    int **res = imatrix(nrl, nrh, ncl, nch);
+    int i, j;
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            res[i][j] = (int)round(sqrt((double)(Ix[i][j] * Ix[i][j] + Iy[i][j] * Iy[i][j])));
+        }
+    }
+    return res;
 }
 
 byte **imatrix_vers_bmatrix(int **m, long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO : chercher min et max, puis
-     *        res[i][j] = 255 * (m[i][j] - min) / (max - min)  (si max != min)
-     */
-    (void)m; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return NULL;
+    byte **res = bmatrix(nrl, nrh, ncl, nch);
+    int i, j;
+    int min_val = m[nrl][ncl], max_val = m[nrl][ncl];
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            if (m[i][j] < min_val) min_val = m[i][j];
+            if (m[i][j] > max_val) max_val = m[i][j];
+        }
+    }
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            if (max_val != min_val) {
+                res[i][j] = (byte)(255.0 * (m[i][j] - min_val) / (max_val - min_val));
+            } else {
+                res[i][j] = 0;
+            }
+        }
+    }
+    return res;
 }
 
 byte **seuillage_imatrix(int **m, int seuil,
                          long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO : m[i][j] >= seuil -> 255 (contour), sinon 0                     */
-    (void)m; (void)seuil; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return NULL;
+    byte **res = bmatrix(nrl, nrh, ncl, nch);
+    int i, j;
+    
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            if (m[i][j] >= seuil) {
+                res[i][j] = (byte)255;
+            } else {
+                res[i][j] = (byte)0;
+            }
+        }
+    }
+    return res;
 }
 
 byte **rgb8_vers_gris(rgb8 **image, long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO : gris = 0.299*r + 0.587*g + 0.114*b  (arrondi, borne 0..255)    */
-    (void)image; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return NULL;
+    byte **res = bmatrix(nrl, nrh, ncl, nch);
+    int i, j;
+    
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            double gris = 0.299 * image[i][j].r + 0.587 * image[i][j].g + 0.114 * image[i][j].b;
+            int gris_int = (int)round(gris);
+            if (gris_int > 255) gris_int = 255;
+            if (gris_int < 0) gris_int = 0;
+            res[i][j] = (byte)gris_int;
+        }
+    }
+    return res;
 }
 
 byte **filtre_moyenneur(byte **image, long nrl, long nrh, long ncl, long nch)
