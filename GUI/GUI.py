@@ -187,24 +187,29 @@ class App(tk.Tk):
         
         # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
         # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
+        score_expr = f"ORDSYS.ORDImageSignature.evaluateScore(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')"
+        
+        if w_hr > 0:
+            score_expr += f"\n                       + {w_hr} * bhattacharyya_distance(t1.{COL_HISTO_R}, t2.{COL_HISTO_R})"
+        if w_hg > 0:
+            score_expr += f"\n                       + {w_hg} * bhattacharyya_distance(t1.{COL_HISTO_G}, t2.{COL_HISTO_G})"
+        if w_hb > 0:
+            score_expr += f"\n                       + {w_hb} * bhattacharyya_distance(t1.{COL_HISTO_B}, t2.{COL_HISTO_B})"
+        if w_dens > 0:
+            score_expr += f"\n                       + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))"
+        if w_isc > 0:
+            score_expr += f"\n                       + {w_isc} * ABS(NVL(t1.{COL_ISCOLOR},0) - NVL(t2.{COL_ISCOLOR},0))"
+        if w_texm > 0:
+            score_expr += f"\n                       + {w_texm} * ABS(NVL(t1.{COL_TEXTURE},0) - NVL(t2.{COL_TEXTURE},0))"
+        if w_lum > 0:
+            score_expr += f"\n                       + {w_lum} * ABS(NVL(t1.{COL_LUMINOSITE},0) - NVL(t2.{COL_LUMINOSITE},0))"
+        if w_sat > 0:
+            score_expr += f"\n                       + {w_sat} * ABS(NVL(t1.{COL_SATURATION},0) - NVL(t2.{COL_SATURATION},0))"
+
         sql_query = f"""
             SELECT t2.{COL_NOM} as NOM,
                    (
-                       -- Score Oracle (retourne une distance)
-                       ORDSYS.ORDImageSignature.evaluateScore(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')
-                       
-                       -- Ajout des différences sur les caractéristiques maison pondérées
-                       -- Décommentez/Ajustez ces lignes lorsque les colonnes existent
-                       /*
-                       + {w_hr} * bhattacharyya_distance(t1.{COL_HISTO_R}, t2.{COL_HISTO_R})
-                       + {w_hg} * bhattacharyya_distance(t1.{COL_HISTO_G}, t2.{COL_HISTO_G})
-                       + {w_hb} * bhattacharyya_distance(t1.{COL_HISTO_B}, t2.{COL_HISTO_B})
-                       + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))
-                       + {w_isc} * ABS(NVL(t1.{COL_ISCOLOR},0) - NVL(t2.{COL_ISCOLOR},0))
-                       + {w_texm} * ABS(NVL(t1.{COL_TEXTURE},0) - NVL(t2.{COL_TEXTURE},0))
-                       + {w_lum} * ABS(NVL(t1.{COL_LUMINOSITE},0) - NVL(t2.{COL_LUMINOSITE},0))
-                       + {w_sat} * ABS(NVL(t1.{COL_SATURATION},0) - NVL(t2.{COL_SATURATION},0))
-                       */
+                       {score_expr}
                    ) AS SCORE
             FROM {TABLE_NAME} t1, {TABLE_NAME} t2
             WHERE t1.{COL_NOM} = '{image_req}' 
