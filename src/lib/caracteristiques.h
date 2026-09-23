@@ -31,6 +31,17 @@
  * en couleur (valeur par defaut a passer a image_est_couleur).             */
 #define SEUIL_TAUX_COLORE       0.02
 
+/* Borne theorique de la luminance moyenne, utilisee pour la ramener dans
+ * [0,1]. C'est une CONSTANTE, et non le maximum observe sur la base : une
+ * image soumise plus tard par l'utilisateur obtient ainsi la meme valeur
+ * que si elle avait fait partie de la base des le depart.                  */
+#define LUMINANCE_MAX  255.0
+
+/* Borne theorique du contraste (ecart-type des niveaux de gris). Le maximum
+ * est atteint par une image moitie noire moitie blanche, ou chaque pixel est
+ * a 127.5 de la moyenne : aucune image ne peut faire mieux.                */
+#define CONTRASTE_MAX  127.5
+
 /* --------------------------------------------------------------------------
  *  Le descripteur d'une image : une ligne de la future table ORACLE.
  * ------------------------------------------------------------------------*/
@@ -96,6 +107,18 @@ int sauver_histogramme_txt(const long hist[NB_NIVEAUX], const char *fichier);
 double moyenne_imatrix(int **m, long nrl, long nrh, long ncl, long nch);
 double ecart_type_imatrix(int **m, long nrl, long nrh, long ncl, long nch,
                           double moyenne);
+
+/* Luminance de l'image, directement sur l'echelle [0,1] utilisee dans la
+ * base : calcule la moyenne des niveaux de gris puis la divise par
+ * LUMINANCE_MAX. La division est bijective, la valeur brute reste
+ * recuperable en multipliant par LUMINANCE_MAX.                            */
+double normaliser_luminance(byte **m, long nrl, long nrh, long ncl, long nch);
+
+/* Contraste de l'image sur l'echelle [0,1] : calcule la moyenne puis
+ * l'ecart-type des niveaux de gris, et divise par CONTRASTE_MAX.
+ * Meme principe que pour la luminance : borne theorique, pas maximum
+ * observe sur la base.                                                     */
+double normaliser_contraste(byte **m, long nrl, long nrh, long ncl, long nch);
 
 /* Moyenne / ecart-type d'une image en niveaux de gris.                     */
 double moyenne_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch);
