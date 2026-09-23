@@ -84,6 +84,10 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
      * Donc la densite reste un taux ou le count absolu. Je vais formater le taux. */
     double densite = (double)nb_pixels_contour / (double)nb_pixels;
 
+    double luminosite = moyenne_bmatrix(I_gris, nrl, nrh, ncl, nch);
+    double saturation = saturation_moyenne(I_couleur, nrl, nrh, ncl, nch);
+    int is_color = image_est_couleur(I_couleur, nrl, nrh, ncl, nch, SEUIL_TAUX_COLORE);
+
     /* Generation de la requete SQL */
     char str_hg[2500], str_hr[2500], str_hg_color[2500], str_hb[2500];
     
@@ -108,9 +112,9 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
     fprintf(f_sql, "  HISTO_B = HISTO_VARRAY(%s),\n", str_hb);
     fprintf(f_sql, "  DENSITE_CONTOURS = %.6f,\n", densite);
     fprintf(f_sql, "  TEXTURE = 0,\n");
-    fprintf(f_sql, "  LUMINOSITE_MOYENNE = 0,\n");
-    fprintf(f_sql, "  SATURATION_MOYENNE = 0,\n");
-    fprintf(f_sql, "  IS_COLOR = 1\n");
+    fprintf(f_sql, "  LUMINOSITE_MOYENNE = %.6f,\n", luminosite);
+    fprintf(f_sql, "  SATURATION_MOYENNE = %.6f,\n", saturation);
+    fprintf(f_sql, "  IS_COLOR = %d\n", is_color);
     fprintf(f_sql, "WHERE NOM = '%s';\n\n", nom_db);
 
     /* Liberation memoire */

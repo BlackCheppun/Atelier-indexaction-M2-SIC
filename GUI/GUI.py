@@ -124,7 +124,7 @@ class App(tk.Tk):
         frame_actions = ttk.Frame(main_frame)
         frame_actions.pack(fill="x", pady=(0, 10))
         
-        ttk.Button(frame_actions, text="Créer Vue & Rechercher", command=self._search).pack(side="left")
+        ttk.Button(frame_actions, text="Rechercher", command=self._search).pack(side="left")
         
         self.tree = ttk.Treeview(main_frame, columns=("nom", "score"), show="headings")
         self.tree.heading("nom", text="Image")
@@ -176,14 +176,13 @@ class App(tk.Tk):
         w_lum = self.poids["Luminosité"].get()
         w_sat = self.poids["Saturation"].get()
 
-        # Construction de la requête SQL (Création de la vue)
+        # Construction de la requête SQL (Sélection directe)
         # On calcule une distance : 0 est identique, plus c'est grand moins c'est similaire.
         oracle_weights = f"color={w_color}, texture={w_texture}, shape={w_shape}, location={w_loc}"
         
         # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
         # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
-        sql_create_view = f"""
-            CREATE OR REPLACE VIEW VUE_COMPARAISON AS
+        sql_query = f"""
             SELECT t2.{COL_NOM} as NOM,
                    (
                        -- Score Oracle (retourne une distance)
@@ -205,17 +204,13 @@ class App(tk.Tk):
             FROM {TABLE_NAME} t1, {TABLE_NAME} t2
             WHERE t1.{COL_NOM} = '{image_req}' 
               AND t2.{COL_NOM} != '{image_req}'
+            ORDER BY SCORE ASC
         """
 
         def work():
             try:
-                self.after(0, lambda: self.status.set("Création de la vue en cours..."))
-                # Création de la vue
-                self.cursor.execute(sql_create_view)
-                
-                # Sélection depuis la vue
-                self.after(0, lambda: self.status.set("Requête sur la vue en cours..."))
-                self.cursor.execute("SELECT NOM, SCORE FROM VUE_COMPARAISON ORDER BY SCORE ASC")
+                self.after(0, lambda: self.status.set("Requête en cours..."))
+                self.cursor.execute(sql_query)
                 rows = self.cursor.fetchall()
                 
                 self.after(0, lambda: self._fill_tree(rows))
