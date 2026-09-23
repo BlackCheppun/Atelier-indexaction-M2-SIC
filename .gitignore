@@ -6,7 +6,9 @@ tp1.exe
 tp3
 tp3.exe
 test_couleur
+test_luminance
 test_couleur.exe
+test_luminance.exe
 *.o
 *.obj
 
