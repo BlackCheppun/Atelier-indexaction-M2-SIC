@@ -101,7 +101,7 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
         strcpy(ext, ".jpg");
     }
 
-    fprintf(f_sql, "UPDATE TP_INDEXATION.TEST_MULTIMEDIA SET \n");
+    fprintf(f_sql, "UPDATE TP_INDEXATION.IMAGES SET \n");
     fprintf(f_sql, "  HISTO_GRIS = HISTO_VARRAY(%s),\n", str_hg);
     fprintf(f_sql, "  HISTO_R = HISTO_VARRAY(%s),\n", str_hr);
     fprintf(f_sql, "  HISTO_G = HISTO_VARRAY(%s),\n", str_hg_color);
