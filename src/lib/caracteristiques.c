@@ -103,19 +103,73 @@ double ecart_type_imatrix(int **m, long nrl, long nrh, long ncl, long nch,
     return 0.0;
 }
 
+/* Luminance moyenne d'une image en niveaux de gris (matrice de byte, telle
+ * que LoadPGM_bmatrix la rend, ou telle que rgb8_vers_gris la produit).
+ * Resultat dans [0, 255] : 0 = image noire, 255 = image blanche.
+ *
+ * Contrairement aux fonctions couleur, AUCUN pixel n'est ecarte : un pixel
+ * noir est une information de luminance parfaitement valide, c'est meme lui
+ * qui fait qu'une image est sombre.                                        */
 double moyenne_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO */
-    (void)m; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return 0.0;
+    double somme = 0.0;
+    long   nb_pixels;
+    long   i, j;
+
+    nb_pixels = (nrh - nrl + 1) * (nch - ncl + 1);
+    if (nb_pixels <= 0) return 0.0;
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            /* accumulation en double : exacte jusqu'a 2^53, alors qu'un long
+               ne fait que 32 bits sous Windows */
+            somme += (double)m[i][j];
+        }
+    }
+
+    return somme / (double)nb_pixels;
 }
 
 double ecart_type_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch,
                           double moyenne)
 {
-    /* TODO */
-    (void)m; (void)nrl; (void)nrh; (void)ncl; (void)nch; (void)moyenne;
-    return 0.0;
+    double somme = 0.0;
+    long   nb_pixels;
+    long   i, j;
+
+    nb_pixels = (nrh - nrl + 1) * (nch - ncl + 1);
+    if (nb_pixels <= 0) return 0.0;
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            somme += ((double)m[i][j] - moyenne) * ((double)m[i][j] - moyenne);
+        }
+    }
+    return sqrt(somme / (double)nb_pixels);
+}
+
+/* Luminance de l'image ramenee de [0, 255] vers [0, 1].
+ * On divise par une borne THEORIQUE et non par le maximum observe sur la
+ * base : une image soumise ensuite par l'utilisateur est alors directement
+ * comparable aux lignes deja stockees, sans avoir a recalculer la table.   */
+double normaliser_luminance(byte **m, long nrl, long nrh, long ncl, long nch)
+{
+    return moyenne_bmatrix(m, nrl, nrh, ncl, nch) / LUMINANCE_MAX;
+}
+
+/* Contraste de l'image ramene de [0, 127.5] vers [0, 1].
+ * 127.5 est le maximum mathematique de l'ecart-type pour des valeurs dans
+ * [0,255] : il correspond a une image moitie noire moitie blanche.
+ * Sur notre base, le maximum observe est 113.4, soit 0.89 une fois
+ * normalise -- l'echelle est donc bien occupee.
+ *
+ * L'ecart-type se calculant par rapport a la moyenne, celle-ci est obtenue
+ * ici meme : la fonction parcourt donc l'image deux fois.                  */
+double normaliser_contraste(byte **m, long nrl, long nrh, long ncl, long nch)
+{
+    double moyenne = moyenne_bmatrix(m, nrl, nrh, ncl, nch);
+
+    return ecart_type_bmatrix(m, nrl, nrh, ncl, nch, moyenne) / CONTRASTE_MAX;
 }
 
 long compter_pixels_contour(byte **contours, long nrl, long nrh, long ncl, long nch)
