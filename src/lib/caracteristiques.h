@@ -1,241 +1,80 @@
-/* ============================================================================
- *  caracteristiques.h  --  Bibliotheque "Atelier Indexation d'images"
- *  ---------------------------------------------------------------------------
- *  Module 2/3 : extraction des CARACTERISTIQUES (descripteurs) d'une image,
- *  et distances entre descripteurs. C'est le coeur de la Partie I : ce sont
- *  ces valeurs qui seront stockees dans la base ORACLE (Partie II).
- * ==========================================================================*/
+/* caracteristiques.h -- extraction des caracteristiques d'une image */
 #ifndef CARACTERISTIQUES_H
 #define CARACTERISTIQUES_H
 
-#include <stdio.h>
 #include "def.h"
 
-#define NB_NIVEAUX 256   /* nombre de classes des histogrammes             */
-#define NB_BINS    16    /* histogramme reduit (16 classes) pour la base    */
+#define NB_NIVEAUX 256   /* nombre de classes des histogrammes */
 
 /* Un pixel dont max(R,G,B) est sous ce seuil est trop sombre pour que sa
- * saturation ait un sens : on l'ecarte des calculs couleur.                */
-#define SEUIL_PIXEL_SOMBRE 20
+ * saturation ait un sens : elle y est indefinie ou dominee par le bruit. */
+#define SEUIL_PIXEL_SOMBRE 15
 
-/* Un pixel est dit "colore" s'il satisfait LES DEUX conditions :
- *   - ecart absolu  (max - min) > SEUIL_ECART_COLORE
- *   - saturation    (max - min) / max > SEUIL_SATURATION_PIXEL
- * La condition absolue filtre le bruit de chrominance des scans et des JPEG
- * (amplitude de quelques niveaux), qui produit un rapport eleve dans les
- * zones sombres alors que le pixel est gris a l'oeil.                      */
+/* Un pixel est dit "colore" s'il verifie les deux conditions :
+ *   ecart (max - min) > SEUIL_ECART_COLORE
+ *   saturation (max - min) / max > SEUIL_SATURATION_PIXEL */
 #define SEUIL_ECART_COLORE      12
 #define SEUIL_SATURATION_PIXEL  0.12
 
-/* Proportion de pixels colores a partir de laquelle l'image est declaree
- * en couleur (valeur par defaut a passer a image_est_couleur).             */
-#define SEUIL_TAUX_COLORE       0.02
+/* Proportion de pixels colores a partir de laquelle l'image est couleur. */
+#define SEUIL_TAUX_COLORE       0.15
 
-/* Borne theorique de la luminance moyenne, utilisee pour la ramener dans
- * [0,1]. C'est une CONSTANTE, et non le maximum observe sur la base : une
- * image soumise plus tard par l'utilisateur obtient ainsi la meme valeur
- * que si elle avait fait partie de la base des le depart.                  */
+/* Bornes theoriques utilisees pour ramener dans [0,1]. */
 #define LUMINANCE_MAX  255.0
-
-/* Borne theorique du contraste (ecart-type des niveaux de gris). Le maximum
- * est atteint par une image moitie noire moitie blanche, ou chaque pixel est
- * a 127.5 de la moyenne : aucune image ne peut faire mieux.                */
 #define CONTRASTE_MAX  127.5
 
-/* Borne theorique de la norme du gradient. Le masque de Sobel donne au plus
- * |Ix| = |Iy| = 4 * 255 = 1020, donc ||grad|| <= 1020 * racine(2) = 1442.5.
- * Note : une MOYENNE de normes ne peut pas approcher cette borne (il
- * faudrait que chaque pixel soit un contour maximal), les valeurs restent
- * donc faibles -- de l'ordre de 0.02 a 0.09 sur notre base. Ce n'est pas un
- * probleme : diviser par une constante ne change aucun classement. Il faudra
- * seulement y penser en ponderant une distance qui melange la texture avec
- * d'autres caracteristiques.                                               */
-#define GRADIENT_MAX   1442.5
-
-/* Seuil applique a la norme du gradient pour decider qu'un pixel est un
- * pixel de contour. 100 donne une bonne dynamique sur la base (de 4 % a
- * 50 % de pixels de contour selon les images).                            */
+/* Seuil sur la norme du gradient au-dela duquel un pixel est un contour. */
 #define SEUIL_CONTOUR  100
 
-/* --------------------------------------------------------------------------
- *  Le descripteur d'une image : une ligne de la future table ORACLE.
- * ------------------------------------------------------------------------*/
-typedef struct {
-    char   nom[256];                  /* nom du fichier image               */
-    long   largeur, hauteur;
-    long   nb_pixels;
+/* --- histogrammes --- */
 
-    int    est_couleur;               /* 1 = couleur, 0 = niveaux de gris   */
-
-    /* --- couleur --- */
-    double moyenne_r, moyenne_g, moyenne_b;   /* 0..255                     */
-    double taux_r, taux_g, taux_b;            /* R/(R+G+B), somme = 1       */
-    double saturation_moyenne;                /* 0..1, sert au N&B          */
-
-    /* --- luminance / contraste --- */
-    double luminance_moyenne;                 /* moyenne des niveaux de gris*/
-    double contraste;                         /* ecart-type des niv. de gris*/
-    double entropie;                          /* desordre de l'histogramme  */
-
-    /* --- texture / contours --- */
-    double gradient_moyen;                    /* moyenne de la norme        */
-    double gradient_ecart_type;
-    long   nb_pixels_contour;                 /* apres seuillage            */
-    double taux_contour;                      /* nb_contour / nb_pixels     */
-
-    /* --- histogrammes normalises (somme = 1) --- */
-    double hist_gris[NB_NIVEAUX];
-    double hist_r[NB_NIVEAUX];
-    double hist_g[NB_NIVEAUX];
-    double hist_b[NB_NIVEAUX];
-} Descripteur;
-
-/* ==========================================================================
- *  [A FAIRE] Histogrammes                                              (2.6)
- * ========================================================================*/
-
-/* Histogramme brut (comptage) d'une image en niveaux de gris.              */
 void histogramme_gris(byte **image, long nrl, long nrh, long ncl, long nch,
                       long hist[NB_NIVEAUX]);
 
-/* Histogrammes bruts des 3 canaux d'une image couleur.                     */
 void histogramme_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,
                      long hr[NB_NIVEAUX], long hg[NB_NIVEAUX], long hb[NB_NIVEAUX]);
 
-/* Passage comptage -> frequences (somme = 1). Indispensable pour comparer
- * des images de tailles differentes.                                       */
+/* Comptages -> frequences, pour comparer des images de tailles differentes. */
 void normaliser_histogramme(const long hist[NB_NIVEAUX], long nb_pixels,
                             double hist_norm[NB_NIVEAUX]);
 
-/* Reduction a NB_BINS classes (utile pour un VARRAY ORACLE compact).       */
-void reduire_histogramme(const double hist_norm[NB_NIVEAUX],
-                         double hist_reduit[NB_BINS]);
+/* --- statistiques --- */
 
-/* Sauvegarde de l'histogramme dans un fichier texte "niveau valeur".  (2.6)*/
-int sauver_histogramme_txt(const long hist[NB_NIVEAUX], const char *fichier);
-
-/* ==========================================================================
- *  [A FAIRE] Caracteristiques scalaires                                (2.8)
- * ========================================================================*/
-
-/* Moyenne / ecart-type d'une imatrix (utilises sur la norme du gradient).  */
 double moyenne_imatrix(int **m, long nrl, long nrh, long ncl, long nch);
-double ecart_type_imatrix(int **m, long nrl, long nrh, long ncl, long nch,
-                          double moyenne);
 
-/* Luminance de l'image, directement sur l'echelle [0,1] utilisee dans la
- * base : calcule la moyenne des niveaux de gris puis la divise par
- * LUMINANCE_MAX. La division est bijective, la valeur brute reste
- * recuperable en multipliant par LUMINANCE_MAX.                            */
-double normaliser_luminance(byte **m, long nrl, long nrh, long ncl, long nch);
-
-/* Contraste de l'image sur l'echelle [0,1] : calcule la moyenne puis
- * l'ecart-type des niveaux de gris, et divise par CONTRASTE_MAX.
- * Meme principe que pour la luminance : borne theorique, pas maximum
- * observe sur la base.                                                     */
-double normaliser_contraste(byte **m, long nrl, long nrh, long ncl, long nch);
-
-/* Taux de texturation d'une image en niveaux de gris, dans [0,1].
- *
- * La fonction calcule elle-meme le gradient : on lui passe l'image grise,
- * pas la norme. Elle alloue et libere ses matrices intermediaires.
- * Passer les bornes COMPLETES : elle ecarte d'elle-meme la premiere et la
- * derniere ligne / colonne, que la convolution laisse a 0.
- *
- * Resultat = moyenne de deux quantites, toutes deux dans [0,1] :
- *   - l'amplitude moyenne du gradient PLAFONNEE au seuil (min(n/seuil, 1)),
- *     qui rend compte de la force des variations ;
- *   - la proportion de pixels depassant le seuil, qui rend compte de leur
- *     densite.
- *
- * seuil_contour : 0 pour utiliser SEUIL_CONTOUR.
- *
- * LIMITE CONNUE : le seuil est exprime en niveaux de gris ABSOLUS. La mesure
- * depend donc du contraste de l'image, et pas seulement de sa texture : une
- * image peu contrastee est systematiquement sous-evaluee. Les valeurs ne
- * sont strictement comparables qu'entre images de contraste comparable.
- * Pour lever cette limite il faudrait un seuil proportionnel a l'ecart-type
- * des niveaux de gris de chaque image.                                     */
-double taux_texture(byte **gris, long nrl, long nrh, long ncl, long nch,
-                    int seuil_contour);
-
-/* Moyenne / ecart-type d'une image en niveaux de gris.                     */
 double moyenne_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch);
 double ecart_type_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch,
                           double moyenne);
 
-/* Nombre de pixels a 255 dans une image binaire (pixels de contour).       */
+/* --- luminance et contraste, sur l'echelle [0,1] --- */
+
+double normaliser_luminance(byte **m, long nrl, long nrh, long ncl, long nch);
+double normaliser_contraste(byte **m, long nrl, long nrh, long ncl, long nch);
+
+/* --- texture --- */
+
+/* Taux de texturation dans [0,1] */
+double taux_texture(byte **gris, long nrl, long nrh, long ncl, long nch,
+                    int seuil_contour);
+
+/* Nombre de pixels a 255 dans une image binaire de contours. */
 long compter_pixels_contour(byte **contours, long nrl, long nrh, long ncl, long nch);
 
-/* Taux de rouge / vert / bleu, dans [0,1] et de somme 1.
- * Pour CHAQUE pixel on calcule sa part de rouge r/(r+g+b), puis on moyenne
- * sur l'image : chaque pixel pese le meme poids, quelle que soit sa
- * luminosite. La mesure porte donc sur la surface coloree, pas sur l'energie
- * lumineuse.
- * C'est la normalisation par (r+g+b) qui evite le piege du sujet (2.8) :
- * une image blanche donne 1/3 - 1/3 - 1/3 et non un taux maximal partout.
- *
- * ATTENTION : ces taux disent QUELLE couleur domine, pas S'IL Y A de la
- * couleur. Une image grise et une image coloree mais equilibree donnent
- * toutes deux 1/3 - 1/3 - 1/3. Toute requete couleur doit donc les croiser
- * avec image_est_couleur().
- *
- * Aucun pixel n'est ecarte, y compris les plus sombres, ou le rapport est
- * pourtant domine par le bruit de compression -- voir le commentaire de la
- * fonction dans caracteristiques.c.                                        */
+/* --- couleur --- */
+
+/* Taux de rouge, vert et bleu  */
 void taux_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,
               double *taux_r, double *taux_g, double *taux_b);
 
-/* Accesseurs de confort : un seul des trois taux. Ils appellent taux_rgb,
- * donc parcourent l'image une fois chacun -- preferer taux_rgb si les trois
- * valeurs sont necessaires.                                                */
 double taux_rouge(rgb8 **image, long nrl, long nrh, long ncl, long nch);
 double taux_vert (rgb8 **image, long nrl, long nrh, long ncl, long nch);
 double taux_bleu (rgb8 **image, long nrl, long nrh, long ncl, long nch);
 
-/* Saturation moyenne (modele HSV simplifie) : (max-min)/max par pixel.
- * Sert a decider si une image est reellement en couleur ou en N&B.         */
+/* Moyenne de (max-min)/max sur les pixels assez lumineux. 0 = gris. */
 double saturation_moyenne(rgb8 **image, long nrl, long nrh, long ncl, long nch);
 
-/* 1 si l'image est consideree couleur, 0 si noir et blanc.
- * La decision repose sur la PROPORTION de pixels colores, pas sur la
- * saturation moyenne : une image massivement grise comportant une petite
- * zone franchement coloree (capture d'ecran, objet colore sur fond gris)
- * garde une moyenne faible et serait classee N&B a tort.
- * Le taux est calcule directement ici, en une seule passe.
- * seuil_taux_colores : proportion declenchante, ex. SEUIL_TAUX_COLORE.     */
+/* 1 si couleur, 0 si noir et blanc */
 int image_est_couleur(rgb8 **image, long nrl, long nrh, long ncl, long nch,
                       double seuil_taux_colores);
-
-/* Entropie de Shannon de l'histogramme normalise : -somme(p*log2(p)).      */
-double entropie_histogramme(const double hist_norm[NB_NIVEAUX]);
-
-/* ==========================================================================
- *  [A FAIRE] Distances entre histogrammes                              (2.8)
- * ========================================================================*/
-double distance_L1(const double h1[], const double h2[], int taille);
-double distance_L2(const double h1[], const double h2[], int taille);
-double distance_intersection(const double h1[], const double h2[], int taille);
-double distance_bhattacharyya(const double h1[], const double h2[], int taille);
-double distance_chi2(const double h1[], const double h2[], int taille);
-
-/* Distance globale entre deux images (combinaison ponderee couleur/texture).*/
-double distance_descripteurs(const Descripteur *d1, const Descripteur *d2,
-                             double poids_couleur, double poids_texture);
-
-/* ==========================================================================
- *  [A FAIRE] Fonction "chapeau" et export
- * ========================================================================*/
-
-/* Calcule TOUTES les caracteristiques d'un fichier image (.pgm ou .ppm).
- * Retourne 0 si OK, -1 en cas d'erreur.                                    */
-int calculer_descripteur(const char *chemin, int seuil_contour, Descripteur *d);
-
-/* Export CSV : c'est le fichier qui sera charge dans ORACLE (Partie II).   */
-void csv_ecrire_entete(FILE *f);
-void csv_ecrire_descripteur(FILE *f, const Descripteur *d);
-
-/* Affichage lisible dans le terminal (debug / demo).                       */
-void afficher_descripteur(const Descripteur *d);
 
 #endif /* CARACTERISTIQUES_H */

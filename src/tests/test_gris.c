@@ -1,20 +1,5 @@
-/* ============================================================================
- *  test_gris.c  --  test de non-regression de rgb8_vers_gris
- *  ---------------------------------------------------------------------------
- *  C'est le seul test du projet qui s'appuie sur une VERITE TERRAIN externe :
- *  la base fournit, pour une partie des images, a la fois le .ppm couleur et
- *  le .pgm en niveaux de gris produit par l'encadrant. Notre conversion doit
- *  reproduire ce .pgm.
- *
- *  Les .pgm fournis ont ete generes avec les coefficients Rec. 709
- *  (COEF_LUMA_* dans traitement.h). Avec le Rec. 601, ce test tombe a ~24 %
- *  de pixels identiques sur une image couleur : il detecte donc immediatement
- *  un changement de formule, une erreur d'arrondi ou une inversion de canal.
- *
- *  Usage :  ./test_gris [numero ...]
- *  Sans argument, teste une selection d'images grises et couleur.
- *  Les fichiers doivent exister dans images/archive500ppm et archive500pgm.
- * ==========================================================================*/
+/* test_gris.c -- compare rgb8_vers_gris aux .pgm fournis avec la base.
+ * Usage : ./test_gris [numero ...] ; sans argument, une selection d images. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -23,8 +8,8 @@
 #include "nralloc.h"
 #include "traitement.h"
 
-/* Criteres d'acceptation : l'egalite parfaite n'est pas exigee, l'outil qui a
- * genere les .pgm n'arrondissait pas exactement comme nous.                 */
+/* L egalite parfaite n est pas exigee : l arrondi de l outil d origine
+ * differe du notre sur quelques pixels. */
 #define MIN_PCT_IDENTIQUE  99.5
 #define ECART_TOLERE       1
 
@@ -49,7 +34,6 @@ static int comparer(const char *numero, long *cumul_px, long *cumul_ok)
     snprintf(chemin_ppm, sizeof(chemin_ppm), "images/archive500ppm/%s.ppm", numero);
     snprintf(chemin_pgm, sizeof(chemin_pgm), "images/archive500pgm/%s.pgm", numero);
 
-    /* Rappel : NRC ne renvoie pas NULL si le fichier manque, il fait exit(1) */
     couleur   = LoadPPM_rgb8matrix(chemin_ppm, &r1, &r2, &c1, &c2);
     reference = LoadPGM_bmatrix(chemin_pgm,    &r3, &r4, &c3, &c4);
     calcule   = rgb8_vers_gris(couleur, r1, r2, c1, c2);

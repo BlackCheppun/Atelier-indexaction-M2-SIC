@@ -17,14 +17,11 @@ LDLIBS   = -lm
 NRC_SRC  = NRC/nrio.c NRC/nralloc.c NRC/nrarith.c
 
 # Notre bibliotheque (code reutilisable de l'equipe)
-LIB_SRC  = src/lib/traitement.c src/lib/caracteristiques.c src/lib/image_io.c
+LIB_SRC  = src/lib/traitement.c src/lib/caracteristiques.c
 
-BINAIRES = extraction tp1 tp3 test_couleur test_luminance test_gris test_texture test_taux_rgb
+BINAIRES = tp1 tp3 test_couleur test_luminance test_gris test_texture test_taux_rgb
 
 all: $(BINAIRES)
-
-extraction: src/extraction.c $(LIB_SRC) $(NRC_SRC)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 tp1: src/tp/tp1.c $(LIB_SRC) $(NRC_SRC)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)

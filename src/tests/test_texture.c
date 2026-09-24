@@ -1,16 +1,5 @@
-/* ============================================================================
- *  test_texture.c  --  test de taux_texture
- *  ---------------------------------------------------------------------------
- *  Les valeurs attendues ont ete obtenues avec le seuil par defaut
- *  (SEUIL_CONTOUR) sur le jeu de 10 images archive10ppm. Ce jeu a l'avantage
- *  d'etre semantiquement etiquete : arbre / bus / mer / vache. Le test verifie
- *  les valeurs, mais surtout il fige le CLASSEMENT -- les trois arbres et
- *  mer1 doivent rester au-dessus des vaches et de bus1.
- *
- *  Usage :  ./test_texture [image.ppm ...]
- *  Sans argument, rejoue le jeu de reference et rend un verdict.
- *  Avec des arguments, affiche simplement la valeur de chaque image.
- * ==========================================================================*/
+/* test_texture.c -- taux de texturation : verifie les valeurs et le classement.
+ * Usage : ./test_texture [image.ppm ...] */
 #include <stdio.h>
 #include <math.h>
 
