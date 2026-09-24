@@ -8,9 +8,11 @@ tp3.exe
 test_couleur
 test_luminance
 test_gris
+test_texture
 test_couleur.exe
 test_luminance.exe
 test_gris.exe
+test_texture.exe
 *.o
 *.obj
 

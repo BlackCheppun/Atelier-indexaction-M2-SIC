@@ -42,6 +42,21 @@
  * a 127.5 de la moyenne : aucune image ne peut faire mieux.                */
 #define CONTRASTE_MAX  127.5
 
+/* Borne theorique de la norme du gradient. Le masque de Sobel donne au plus
+ * |Ix| = |Iy| = 4 * 255 = 1020, donc ||grad|| <= 1020 * racine(2) = 1442.5.
+ * Note : une MOYENNE de normes ne peut pas approcher cette borne (il
+ * faudrait que chaque pixel soit un contour maximal), les valeurs restent
+ * donc faibles -- de l'ordre de 0.02 a 0.09 sur notre base. Ce n'est pas un
+ * probleme : diviser par une constante ne change aucun classement. Il faudra
+ * seulement y penser en ponderant une distance qui melange la texture avec
+ * d'autres caracteristiques.                                               */
+#define GRADIENT_MAX   1442.5
+
+/* Seuil applique a la norme du gradient pour decider qu'un pixel est un
+ * pixel de contour. 100 donne une bonne dynamique sur la base (de 4 % a
+ * 50 % de pixels de contour selon les images).                            */
+#define SEUIL_CONTOUR  100
+
 /* --------------------------------------------------------------------------
  *  Le descripteur d'une image : une ligne de la future table ORACLE.
  * ------------------------------------------------------------------------*/
@@ -119,6 +134,30 @@ double normaliser_luminance(byte **m, long nrl, long nrh, long ncl, long nch);
  * Meme principe que pour la luminance : borne theorique, pas maximum
  * observe sur la base.                                                     */
 double normaliser_contraste(byte **m, long nrl, long nrh, long ncl, long nch);
+
+/* Taux de texturation d'une image en niveaux de gris, dans [0,1].
+ *
+ * La fonction calcule elle-meme le gradient : on lui passe l'image grise,
+ * pas la norme. Elle alloue et libere ses matrices intermediaires.
+ * Passer les bornes COMPLETES : elle ecarte d'elle-meme la premiere et la
+ * derniere ligne / colonne, que la convolution laisse a 0.
+ *
+ * Resultat = moyenne de deux quantites, toutes deux dans [0,1] :
+ *   - l'amplitude moyenne du gradient PLAFONNEE au seuil (min(n/seuil, 1)),
+ *     qui rend compte de la force des variations ;
+ *   - la proportion de pixels depassant le seuil, qui rend compte de leur
+ *     densite.
+ *
+ * seuil_contour : 0 pour utiliser SEUIL_CONTOUR.
+ *
+ * LIMITE CONNUE : le seuil est exprime en niveaux de gris ABSOLUS. La mesure
+ * depend donc du contraste de l'image, et pas seulement de sa texture : une
+ * image peu contrastee est systematiquement sous-evaluee. Les valeurs ne
+ * sont strictement comparables qu'entre images de contraste comparable.
+ * Pour lever cette limite il faudrait un seuil proportionnel a l'ecart-type
+ * des niveaux de gris de chaque image.                                     */
+double taux_texture(byte **gris, long nrl, long nrh, long ncl, long nch,
+                    int seuil_contour);
 
 /* Moyenne / ecart-type d'une image en niveaux de gris.                     */
 double moyenne_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch);

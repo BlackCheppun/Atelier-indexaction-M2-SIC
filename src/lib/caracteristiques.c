@@ -88,19 +88,56 @@ int sauver_histogramme_txt(const long hist[NB_NIVEAUX], const char *fichier)
  *  Caracteristiques scalaires
  * ========================================================================*/
 
+/* Moyenne d'une imatrix. Utilisee sur la norme du gradient, dont elle donne
+ * le niveau global de texture.
+ *
+ * ATTENTION AUX BORNES : la convolution ne peut pas calculer les bords, qui
+ * valent donc 0 dans la norme du gradient. Les inclure tirerait la moyenne
+ * vers le bas, et d'autant plus que l'image est petite -- donc inegalement
+ * d'une image a l'autre. Appeler avec l'INTERIEUR :
+ *     moyenne_imatrix(norme, nrl + 1, nrh - 1, ncl + 1, nch - 1)            */
 double moyenne_imatrix(int **m, long nrl, long nrh, long ncl, long nch)
 {
-    /* TODO */
-    (void)m; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    return 0.0;
+    double somme = 0.0;
+    long   nb_pixels;
+    long   i, j;
+
+    nb_pixels = (nrh - nrl + 1) * (nch - ncl + 1);
+    if (nb_pixels <= 0) return 0.0;
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            somme += (double)m[i][j];
+        }
+    }
+
+    return somme / (double)nb_pixels;
 }
 
+/* Ecart-type d'une imatrix, en deux passes : la moyenne est recue en
+ * parametre. Sur la norme du gradient, il mesure si la texture est repartie
+ * uniformement (ecart-type proche de la moyenne) ou concentree sur quelques
+ * contours francs (ecart-type nettement superieur a la moyenne).
+ *
+ * Doit etre appelee avec les MEMES bornes que la moyenne fournie.          */
 double ecart_type_imatrix(int **m, long nrl, long nrh, long ncl, long nch,
                           double moyenne)
 {
-    /* TODO : sqrt( somme((m[i][j]-moyenne)^2) / N )                         */
-    (void)m; (void)nrl; (void)nrh; (void)ncl; (void)nch; (void)moyenne;
-    return 0.0;
+    double somme = 0.0;
+    long   nb_pixels;
+    long   i, j;
+
+    nb_pixels = (nrh - nrl + 1) * (nch - ncl + 1);
+    if (nb_pixels <= 0) return 0.0;
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            double ecart = (double)m[i][j] - moyenne;
+            somme += ecart * ecart;
+        }
+    }
+
+    return sqrt(somme / (double)nb_pixels);
 }
 
 /* Luminance moyenne d'une image en niveaux de gris (matrice de byte, telle
@@ -170,6 +207,51 @@ double normaliser_contraste(byte **m, long nrl, long nrh, long ncl, long nch)
     double moyenne = moyenne_bmatrix(m, nrl, nrh, ncl, nch);
 
     return ecart_type_bmatrix(m, nrl, nrh, ncl, nch, moyenne) / CONTRASTE_MAX;
+}
+
+/* Taux de texturation. Voir caracteristiques.h pour le detail du calcul et
+ * la limite connue (seuil en niveaux de gris absolus).
+ *
+ * La chaine du gradient est faite ici : l'appelant fournit l'image grise et
+ * n'a ni matrice a allouer ni bornes a resserrer.                          */
+double taux_texture(byte **gris, long nrl, long nrh, long ncl, long nch,
+                    int seuil_contour)
+{
+    long   i, j, nb_interieur, nb_contour = 0;
+    double somme_sature = 0.0, resultat;
+    int  **Ix, **Iy, **norme;
+
+    if (nrh - nrl < 2 || nch - ncl < 2) return 0.0;   /* pas d'interieur */
+    if (seuil_contour <= 0) seuil_contour = SEUIL_CONTOUR;
+
+    Ix    = gradient_x(gris, nrl, nrh, ncl, nch);
+    Iy    = gradient_y(gris, nrl, nrh, ncl, nch);
+    norme = norme_gradient(Ix, Iy, nrl, nrh, ncl, nch);
+
+    /* les bords valent 0 (convolution non calculable) : on les exclut */
+    for (i = nrl + 1; i <= nrh - 1; i++) {
+        for (j = ncl + 1; j <= nch - 1; j++) {
+            int n = norme[i][j];
+
+            if (n > seuil_contour) {
+                nb_contour++;
+                somme_sature += 1.0;              /* amplitude plafonnee */
+            } else {
+                somme_sature += (double)n / (double)seuil_contour;
+            }
+        }
+    }
+    nb_interieur = (nrh - nrl - 1) * (nch - ncl - 1);
+
+    /* moyenne de l'amplitude plafonnee et de la densite de contours */
+    resultat = 0.5 * (somme_sature / (double)nb_interieur
+                      + (double)nb_contour / (double)nb_interieur);
+
+    free_imatrix(Ix, nrl, nrh, ncl, nch);
+    free_imatrix(Iy, nrl, nrh, ncl, nch);
+    free_imatrix(norme, nrl, nrh, ncl, nch);
+
+    return resultat;
 }
 
 long compter_pixels_contour(byte **contours, long nrl, long nrh, long ncl, long nch)
