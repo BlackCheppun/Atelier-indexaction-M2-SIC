@@ -1,18 +1,5 @@
-/* ============================================================================
- *  test_luminance.c  --  test de la caracteristique "luminance"
- *  ---------------------------------------------------------------------------
- *  Charge des images PGM avec NRC et affiche, pour chacune, la luminance
- *  moyenne (moyenne_bmatrix).
- *
- *  Usage :  ./test_luminance [image1.pgm image2.pgm ...]
- *  Sans argument, teste 5 images de images/archive500pgm/ dont les valeurs
- *  attendues sont connues (voir le tableau ci-dessous).
- *
- *  Valeurs de reference (calcul independant) :
- *      1.pgm   -> 175.0098      99.pgm  -> 152.6667
- *      42.pgm  -> 169.9377     120.pgm  -> 181.7703
- *      83.pgm  ->  24.6539
- * ==========================================================================*/
+/* test_luminance.c -- luminance et contraste, valeur brute puis normalisee.
+ * Usage : ./test_luminance [image.pgm ...] */
 #include <stdio.h>
 
 #include "def.h"

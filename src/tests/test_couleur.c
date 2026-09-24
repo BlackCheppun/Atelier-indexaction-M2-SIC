@@ -1,13 +1,5 @@
-/* ============================================================================
- *  test_couleur.c  --  test des fonctions couleur / noir et blanc
- *  ---------------------------------------------------------------------------
- *  Charge des images PPM avec NRC et affiche, pour chacune :
- *      - la saturation moyenne
- *      - la decision est_couleur
- *
- *  Usage :  ./test_couleur [image1.ppm image2.ppm ...]
- *  Sans argument, teste les 3 images de images/test/.
- * ==========================================================================*/
+/* test_couleur.c -- saturation moyenne et decision couleur / noir et blanc.
+ * Usage : ./test_couleur [image.ppm ...] ; sans argument, images/test/. */
 #include <stdio.h>
 
 #include "def.h"
@@ -29,10 +21,6 @@ static void tester(const char *chemin)
     double saturation;
     int    couleur;
 
-    /* Attention : si le fichier n'existe pas, NRC n'echoue pas proprement,
-     * il appelle nrerror() qui fait exit(1). Le test ci-dessous ne sert donc
-     * a rien en pratique -- le processus est deja mort. Les chemins doivent
-     * utiliser des '/' (le conteneur est sous Linux).                       */
     image = LoadPPM_rgb8matrix((char *)chemin, &nrl, &nrh, &ncl, &nch);
     if (image == NULL) {
         printf("  %-28s  LECTURE IMPOSSIBLE\n", chemin);

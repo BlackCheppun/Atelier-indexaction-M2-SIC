@@ -1,6 +1,4 @@
-/* ============================================================================
- *  traitement.c  --  implementation du module de pre-traitement
- * ==========================================================================*/
+/* traitement.c -- filtrage, gradient et conversions */
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -10,9 +8,6 @@
 #include "nralloc.h"
 #include "traitement.h"
 
-/* --------------------------------------------------------------------------
- *  Masques
- * ------------------------------------------------------------------------*/
 int MASQUE_MOYENNEUR[3][3] = {
     {1, 1, 1},
     {1, 1, 1},
@@ -33,9 +28,6 @@ int MASQUE_SOBEL_Y[3][3] = {
     { 1,  2,  1}
 };
 
-/* ==========================================================================
- *  [FAIT] Repris de tp1.c / tp3.c
- * ========================================================================*/
 byte **produit_convolution(byte **image, long nrl, long nrh, long ncl, long nch,
                            int masque[3][3], int diviseur)
 {
@@ -82,10 +74,6 @@ byte **produit_convolution(byte **image, long nrl, long nrh, long ncl, long nch,
 }
 
 
-
-/* ==========================================================================
- *  [A FAIRE] squelettes a completer
- * ========================================================================*/
 
 int **convolution_signee(byte **image, long nrl, long nrh, long ncl, long nch,
                          int masque[3][3], int diviseur)

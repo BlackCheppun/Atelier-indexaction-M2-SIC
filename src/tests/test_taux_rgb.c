@@ -1,22 +1,6 @@
-/* ============================================================================
- *  test_taux_rgb.c  --  test de taux_rgb et des trois accesseurs
- *  ---------------------------------------------------------------------------
- *  Le jeu de reference melange volontairement des images ordinaires et des
- *  cas limites :
- *    - arbre1 / vache1 / bus1 / mer2 : photos courantes, dominantes variees
- *    - 231  : la plus rouge de la base, celle qui repond a la q.5a du sujet
- *    - 447  : scene sous-marine, dominante bleu-vert tres marquee
- *    - 140  : image quasi noire (97 % de pixels sombres) -> doit renvoyer le
- *             neutre 1/3, c'est le test du cas 0/0
- *    - 83   : image en niveaux de gris -> les trois taux voisins de 1/3
- *
- *  Le test verifie trois choses :
- *    1. les valeurs, a 5e-4 pres ;
- *    2. l'invariant taux_r + taux_v + taux_b == 1 ;
- *    3. la coherence des accesseurs avec taux_rgb.
- *
- *  Usage :  ./test_taux_rgb [image.ppm ...]
- * ==========================================================================*/
+/* test_taux_rgb.c -- taux de rouge, vert et bleu : verifie les valeurs, la
+ * somme a 1 et la coherence des accesseurs.
+ * Usage : ./test_taux_rgb [image.ppm ...] */
 #include <stdio.h>
 #include <math.h>
 
@@ -53,7 +37,6 @@ static int verifier(const Reference *ref)
     double r, g, b, somme;
     int    valeurs_ok, somme_ok, accesseurs_ok;
 
-    /* Rappel : NRC fait exit(1) si le fichier est introuvable.             */
     image = LoadPPM_rgb8matrix((char *)ref->chemin, &nrl, &nrh, &ncl, &nch);
 
     taux_rgb(image, nrl, nrh, ncl, nch, &r, &g, &b);
