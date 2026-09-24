@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 import threading
 import tkinter as tk
+import re
 from tkinter import messagebox, ttk
 
 # --- Configuration Base de données ---
@@ -87,8 +88,13 @@ class App(tk.Tk):
             elif dataset == "500":
                 where_clause = "WHERE REGEXP_LIKE(nom, '^[0-9]+')"
 
-            self.cursor.execute(f"SELECT {COL_NOM} FROM {TABLE_NAME} {where_clause} ORDER BY {COL_NOM}")
+            self.cursor.execute(f"SELECT {COL_NOM} FROM {TABLE_NAME} {where_clause}")
             rows = self.cursor.fetchall()
+            
+            def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+                return [int(text) if text.isdigit() else text.lower() for text in _nsre.split(s[0])]
+            
+            rows.sort(key=natural_sort_key)
             self.images_list = [r[0] for r in rows]
             self.after(0, self._update_cb_images)
         except Exception as e:
@@ -113,32 +119,34 @@ class App(tk.Tk):
 
         # 0. Mode de recherche
         self.var_mode = tk.StringVar(value="compare")
+        self.var_mode.trace_add("write", self._on_mode_change)
+        
         frame_mode = ttk.LabelFrame(main_frame, text="Mode de recherche", padding=10)
         frame_mode.pack(fill="x", pady=(0, 10))
         ttk.Radiobutton(frame_mode, text="Comparaison avec une image cible", variable=self.var_mode, value="compare").pack(side="left", padx=10)
         ttk.Radiobutton(frame_mode, text="Recherche Globale (Maximiser les critères cochés)", variable=self.var_mode, value="global").pack(side="left", padx=10)
 
         # 1. Sélection de l'image requête
-        frame_req = ttk.LabelFrame(main_frame, text="1. Image Requête (depuis Oracle, pour comparaison)", padding=10)
-        frame_req.pack(fill="x", pady=(0, 10))
+        self.frame_req = ttk.LabelFrame(main_frame, text="1. Image Requête (depuis Oracle, pour comparaison)", padding=10)
+        self.frame_req.pack(fill="x", pady=(0, 10))
         
-        ttk.Label(frame_req, text="Sélectionnez l'image :").pack(side="left", padx=(0, 10))
-        self.cb_images = ttk.Combobox(frame_req, textvariable=self.var_image_req, state="readonly", width=40)
+        ttk.Label(self.frame_req, text="Sélectionnez l'image :").pack(side="left", padx=(0, 10))
+        self.cb_images = ttk.Combobox(self.frame_req, textvariable=self.var_image_req, state="readonly", width=40)
         self.cb_images.pack(side="left")
 
         # 2. Sliders (Poids)
-        frame_sliders = ttk.LabelFrame(main_frame, text="2. Pondérations des caractéristiques", padding=10)
-        frame_sliders.pack(fill="x", pady=(0, 10))
+        self.frame_sliders = ttk.LabelFrame(main_frame, text="2. Pondérations des caractéristiques", padding=10)
+        self.frame_sliders.pack(fill="x", pady=(0, 10))
 
         # Sous-frame pour Oracle
-        frame_ora = ttk.LabelFrame(frame_sliders, text="Signatures natives Oracle (OrdImage)", padding=10)
-        frame_ora.pack(side="left", fill="both", expand=True, padx=(0, 5))
-        self._build_sliders(frame_ora, ["Oracle Couleur", "Oracle Texture", "Oracle Forme", "Oracle Localisation"])
+        self.frame_ora = ttk.LabelFrame(self.frame_sliders, text="Signatures natives Oracle (OrdImage)", padding=10)
+        self.frame_ora.pack(side="left", fill="both", expand=True, padx=(0, 5))
+        self._build_sliders(self.frame_ora, ["Oracle Couleur", "Oracle Texture", "Oracle Forme", "Oracle Localisation"])
 
         # Sous-frame pour Maison
-        frame_maison = ttk.LabelFrame(frame_sliders, text="Caractéristiques extraites (Maison)", padding=10)
-        frame_maison.pack(side="left", fill="both", expand=True, padx=(5, 0))
-        self._build_sliders(frame_maison, [
+        self.frame_maison = ttk.LabelFrame(self.frame_sliders, text="Caractéristiques extraites (Maison)", padding=10)
+        self.frame_maison.pack(side="left", fill="both", expand=True, padx=(5, 0))
+        self._build_sliders(self.frame_maison, [
             "Histo R", "Histo G", "Histo B", "Densité Contours",
             "IsColor", "Texture Maison", "Luminosité", "Saturation"
         ])
@@ -175,6 +183,15 @@ class App(tk.Tk):
                 l.config(text=f"{var.get():.2f}")
             scale.configure(command=update_lbl)
             update_lbl(None) # Init
+
+    def _on_mode_change(self, *args):
+        mode = self.var_mode.get()
+        if mode == "global":
+            self.frame_req.pack_forget()
+            self.frame_ora.pack_forget()
+        else:
+            self.frame_req.pack(fill="x", pady=(0, 10), before=self.frame_sliders)
+            self.frame_ora.pack(side="left", fill="both", expand=True, padx=(0, 5), before=self.frame_maison)
 
     # ------------------------------------------------------------------ Recherche
     def _search(self) -> None:
@@ -258,20 +275,19 @@ class App(tk.Tk):
             """
         else:
             # Mode "Global" : on n'a pas d'image de référence (t1 n'existe pas).
-            # On veut trouver les images qui ont le plus des caractéristiques demandées.
-            # Pour rester cohérent avec le mode comparaison (où le score est une distance, 0 = parfait),
-            # on calcule la distance par rapport à l'idéal théorique (1.0).
+            # On cherche les images qui MAXIMISENT la somme pondérée des caractéristiques.
+            # Plus le score est haut, plus l'image correspond aux critères choisis.
             score_expr = "0"
             if w_dens > 0:
-                score_expr += f"\n                       + {w_dens} * ABS(1.0 - NVL(t2.{COL_DENSITE},0))"
+                score_expr += f"\n                       + {w_dens} * NVL(t2.{COL_DENSITE},0)"
             if w_isc > 0:
-                score_expr += f"\n                       + {w_isc} * ABS(1.0 - NVL(t2.{COL_ISCOLOR},0))"
+                score_expr += f"\n                       + {w_isc} * NVL(t2.{COL_ISCOLOR},0)"
             if w_texm > 0:
-                score_expr += f"\n                       + {w_texm} * ABS(1.0 - NVL(t2.{COL_TEXTURE},0))"
+                score_expr += f"\n                       + {w_texm} * NVL(t2.{COL_TEXTURE},0)"
             if w_lum > 0:
-                score_expr += f"\n                       + {w_lum} * ABS(1.0 - NVL(t2.{COL_LUMINOSITE},0))"
+                score_expr += f"\n                       + {w_lum} * NVL(t2.{COL_LUMINOSITE},0)"
             if w_sat > 0:
-                score_expr += f"\n                       + {w_sat} * ABS(1.0 - NVL(t2.{COL_SATURATION},0))"
+                score_expr += f"\n                       + {w_sat} * NVL(t2.{COL_SATURATION},0)"
             
             where_global = filter_t2.replace("AND", "WHERE", 1) if filter_t2 else ""
 
@@ -282,7 +298,7 @@ class App(tk.Tk):
                        ) AS SCORE
                 FROM {TABLE_NAME} t2
                 {where_global}
-                ORDER BY SCORE ASC
+                ORDER BY SCORE DESC
             """
 
         def work():
