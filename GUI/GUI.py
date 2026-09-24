@@ -22,6 +22,10 @@ COL_SIGNATURE = "signature"
 COL_HISTO_R = "histo_r"
 COL_HISTO_G = "histo_g"
 COL_HISTO_B = "histo_b"
+COL_HISTO_GRIS = "histo_gris"
+COL_TAUX_R = "taux_r"
+COL_TAUX_G = "taux_g"
+COL_TAUX_B = "taux_b"
 COL_DENSITE = "densite_contours"
 COL_ISCOLOR = "is_color"
 COL_TEXTURE = "texture"
@@ -56,6 +60,10 @@ class App(tk.Tk):
             "Histo R": tk.DoubleVar(value=0.0),
             "Histo G": tk.DoubleVar(value=0.0),
             "Histo B": tk.DoubleVar(value=0.0),
+            "Histo Gris": tk.DoubleVar(value=0.0),
+            "Taux R": tk.DoubleVar(value=0.0),
+            "Taux G": tk.DoubleVar(value=0.0),
+            "Taux B": tk.DoubleVar(value=0.0),
             "Densité Contours": tk.DoubleVar(value=0.0),
             "IsColor": tk.DoubleVar(value=0.0),
             "Texture Maison": tk.DoubleVar(value=0.0),
@@ -137,19 +145,30 @@ class App(tk.Tk):
         # 2. Sliders (Poids)
         self.frame_sliders = ttk.LabelFrame(main_frame, text="2. Pondérations des caractéristiques", padding=10)
         self.frame_sliders.pack(fill="x", pady=(0, 10))
+        
+        self.frame_sliders.columnconfigure(0, weight=1)
+        self.frame_sliders.columnconfigure(1, weight=1)
 
         # Sous-frame pour Oracle
         self.frame_ora = ttk.LabelFrame(self.frame_sliders, text="Signatures natives Oracle (OrdImage)", padding=10)
-        self.frame_ora.pack(side="left", fill="both", expand=True, padx=(0, 5))
         self._build_sliders(self.frame_ora, ["Oracle Couleur", "Oracle Texture", "Oracle Forme", "Oracle Localisation"])
+        self.frame_ora.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Sous-frame pour Maison
-        self.frame_maison = ttk.LabelFrame(self.frame_sliders, text="Caractéristiques extraites (Maison)", padding=10)
-        self.frame_maison.pack(side="left", fill="both", expand=True, padx=(5, 0))
-        self._build_sliders(self.frame_maison, [
-            "Histo R", "Histo G", "Histo B", "Densité Contours",
-            "IsColor", "Texture Maison", "Luminosité", "Saturation"
-        ])
+        # Sous-frame pour Histogrammes
+        self.frame_histos = ttk.LabelFrame(self.frame_sliders, text="Histogrammes (Comparaison)", padding=10)
+        self._build_sliders(self.frame_histos, ["Histo R", "Histo G", "Histo B", "Histo Gris"])
+        self.frame_histos.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+
+        # Sous-frame pour Taux RGB
+        self.frame_taux = ttk.LabelFrame(self.frame_sliders, text="Taux RGB (Globale)", padding=10)
+        self._build_sliders(self.frame_taux, ["Taux R", "Taux G", "Taux B"])
+        self.frame_taux.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+        self.frame_taux.grid_remove() # Caché par défaut car on commence en mode "compare"
+
+        # Sous-frame Commune
+        self.frame_common = ttk.LabelFrame(self.frame_sliders, text="Caractéristiques extraites (Communes)", padding=10)
+        self._build_sliders(self.frame_common, ["Densité Contours", "IsColor", "Texture Maison", "Luminosité", "Saturation"])
+        self.frame_common.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=5, pady=5)
 
         # 3. Actions et Résultats
         frame_actions = ttk.Frame(main_frame)
@@ -188,10 +207,14 @@ class App(tk.Tk):
         mode = self.var_mode.get()
         if mode == "global":
             self.frame_req.pack_forget()
-            self.frame_ora.pack_forget()
+            self.frame_ora.grid_remove()
+            self.frame_histos.grid_remove()
+            self.frame_taux.grid()
         else:
             self.frame_req.pack(fill="x", pady=(0, 10), before=self.frame_sliders)
-            self.frame_ora.pack(side="left", fill="both", expand=True, padx=(0, 5), before=self.frame_maison)
+            self.frame_taux.grid_remove()
+            self.frame_ora.grid()
+            self.frame_histos.grid()
 
     # ------------------------------------------------------------------ Recherche
     def _search(self) -> None:
@@ -209,6 +232,12 @@ class App(tk.Tk):
         w_hr = self.poids["Histo R"].get()
         w_hg = self.poids["Histo G"].get()
         w_hb = self.poids["Histo B"].get()
+        w_hgris = self.poids["Histo Gris"].get()
+        
+        w_tr = self.poids["Taux R"].get()
+        w_tg = self.poids["Taux G"].get()
+        w_tb = self.poids["Taux B"].get()
+        
         w_dens = self.poids["Densité Contours"].get()
         w_isc = self.poids["IsColor"].get()
         w_texm = self.poids["Texture Maison"].get()
@@ -251,6 +280,9 @@ class App(tk.Tk):
                 score_expr += f"\n                       + {w_hg} * bhattacharyya_distance(t1.{COL_HISTO_G}, t2.{COL_HISTO_G})"
             if w_hb > 0:
                 score_expr += f"\n                       + {w_hb} * bhattacharyya_distance(t1.{COL_HISTO_B}, t2.{COL_HISTO_B})"
+            if w_hgris > 0:
+                score_expr += f"\n                       + {w_hgris} * bhattacharyya_distance(t1.{COL_HISTO_GRIS}, t2.{COL_HISTO_GRIS})"
+            
             if w_dens > 0:
                 score_expr += f"\n                       + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))"
             if w_isc > 0:
@@ -278,6 +310,13 @@ class App(tk.Tk):
             # On cherche les images qui MAXIMISENT la somme pondérée des caractéristiques.
             # Plus le score est haut, plus l'image correspond aux critères choisis.
             score_expr = "0"
+            if w_tr > 0:
+                score_expr += f"\n                       + {w_tr} * NVL(t2.{COL_TAUX_R},0)"
+            if w_tg > 0:
+                score_expr += f"\n                       + {w_tg} * NVL(t2.{COL_TAUX_G},0)"
+            if w_tb > 0:
+                score_expr += f"\n                       + {w_tb} * NVL(t2.{COL_TAUX_B},0)"
+            
             if w_dens > 0:
                 score_expr += f"\n                       + {w_dens} * NVL(t2.{COL_DENSITE},0)"
             if w_isc > 0:
