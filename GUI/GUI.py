@@ -119,11 +119,11 @@ class App(tk.Tk):
         main_frame.pack(fill="both", expand=True)
 
         # -1. Dataset
-        frame_ds = ttk.LabelFrame(main_frame, text="Ensemble de données (Base d'images)", padding=10)
+        frame_ds = ttk.LabelFrame(main_frame, text="Filtre sur la base d'images", padding=10)
         frame_ds.pack(fill="x", pady=(0, 10))
         ttk.Radiobutton(frame_ds, text="Toutes (510 images)", variable=self.var_dataset, value="toutes", command=self._fetch_images).pack(side="left", padx=10)
-        ttk.Radiobutton(frame_ds, text="Les 10 images (arbres, bus, etc.)", variable=self.var_dataset, value="10", command=self._fetch_images).pack(side="left", padx=10)
-        ttk.Radiobutton(frame_ds, text="Les 500 images (1 à 500)", variable=self.var_dataset, value="500", command=self._fetch_images).pack(side="left", padx=10)
+        ttk.Radiobutton(frame_ds, text="Les 10 images (Archives: arbres, bus...)", variable=self.var_dataset, value="10", command=self._fetch_images).pack(side="left", padx=10)
+        ttk.Radiobutton(frame_ds, text="Les 500 images (Numérotées)", variable=self.var_dataset, value="500", command=self._fetch_images).pack(side="left", padx=10)
 
         # 0. Mode de recherche
         self.var_mode = tk.StringVar(value="compare")
@@ -131,42 +131,42 @@ class App(tk.Tk):
         
         frame_mode = ttk.LabelFrame(main_frame, text="Mode de recherche", padding=10)
         frame_mode.pack(fill="x", pady=(0, 10))
-        ttk.Radiobutton(frame_mode, text="Comparaison avec une image cible", variable=self.var_mode, value="compare").pack(side="left", padx=10)
-        ttk.Radiobutton(frame_mode, text="Recherche Globale (Maximiser les critères cochés)", variable=self.var_mode, value="global").pack(side="left", padx=10)
+        ttk.Radiobutton(frame_mode, text="Recherche par similarité (Comparaison)", variable=self.var_mode, value="compare").pack(side="left", padx=10)
+        ttk.Radiobutton(frame_mode, text="Recherche par critères (Filtrage global)", variable=self.var_mode, value="global").pack(side="left", padx=10)
 
         # 1. Sélection de l'image requête
-        self.frame_req = ttk.LabelFrame(main_frame, text="1. Image Requête (depuis Oracle, pour comparaison)", padding=10)
+        self.frame_req = ttk.LabelFrame(main_frame, text="Image de référence (Comparaison)", padding=10)
         self.frame_req.pack(fill="x", pady=(0, 10))
         
-        ttk.Label(self.frame_req, text="Sélectionnez l'image :").pack(side="left", padx=(0, 10))
+        ttk.Label(self.frame_req, text="Sélectionnez l'image cible :").pack(side="left", padx=(0, 10))
         self.cb_images = ttk.Combobox(self.frame_req, textvariable=self.var_image_req, state="readonly", width=40)
         self.cb_images.pack(side="left")
 
         # 2. Sliders (Poids)
-        self.frame_sliders = ttk.LabelFrame(main_frame, text="2. Pondérations des caractéristiques", padding=10)
+        self.frame_sliders = ttk.LabelFrame(main_frame, text="Critères de recherche et pondérations", padding=10)
         self.frame_sliders.pack(fill="x", pady=(0, 10))
         
         self.frame_sliders.columnconfigure(0, weight=1)
         self.frame_sliders.columnconfigure(1, weight=1)
 
         # Sous-frame pour Oracle
-        self.frame_ora = ttk.LabelFrame(self.frame_sliders, text="Signatures natives Oracle (OrdImage)", padding=10)
+        self.frame_ora = ttk.LabelFrame(self.frame_sliders, text="Reconnaissance globale (Oracle OrdImage)", padding=10)
         self._build_sliders(self.frame_ora, ["Oracle Couleur", "Oracle Texture", "Oracle Forme", "Oracle Localisation"])
         self.frame_ora.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
         # Sous-frame pour Histogrammes
-        self.frame_histos = ttk.LabelFrame(self.frame_sliders, text="Histogrammes (Comparaison)", padding=10)
+        self.frame_histos = ttk.LabelFrame(self.frame_sliders, text="Répartition des couleurs (Histogrammes)", padding=10)
         self._build_sliders(self.frame_histos, ["Histo R", "Histo G", "Histo B", "Histo Gris"])
         self.frame_histos.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
         # Sous-frame pour Taux RGB
-        self.frame_taux = ttk.LabelFrame(self.frame_sliders, text="Taux RGB (Globale)", padding=10)
+        self.frame_taux = ttk.LabelFrame(self.frame_sliders, text="Prédominance des couleurs (Taux RGB)", padding=10)
         self._build_sliders(self.frame_taux, ["Taux R", "Taux G", "Taux B"])
         self.frame_taux.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.frame_taux.grid_remove() # Caché par défaut car on commence en mode "compare"
 
         # Sous-frame Commune
-        self.frame_common = ttk.LabelFrame(self.frame_sliders, text="Caractéristiques extraites (Communes)", padding=10)
+        self.frame_common = ttk.LabelFrame(self.frame_sliders, text="Propriétés visuelles de l'image", padding=10)
         self._build_sliders(self.frame_common, ["Densité Contours", "IsColor", "Texture Maison", "Luminosité", "Saturation"])
         self.frame_common.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=5, pady=5)
 
@@ -176,14 +176,23 @@ class App(tk.Tk):
         
         ttk.Button(frame_actions, text="Rechercher", command=self._search).pack(side="left")
         
-        self.tree = ttk.Treeview(main_frame, columns=("rang", "nom", "score"), show="headings")
+        # Frame pour le tableau et la scrollbar
+        frame_tree = ttk.Frame(main_frame)
+        frame_tree.pack(fill="both", expand=True)
+        
+        scrollbar = ttk.Scrollbar(frame_tree)
+        scrollbar.pack(side="right", fill="y")
+        
+        self.tree = ttk.Treeview(frame_tree, columns=("rang", "nom", "score"), show="headings", yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.tree.yview)
+        
         self.tree.heading("rang", text="Rang")
         self.tree.heading("nom", text="Image")
         self.tree.heading("score", text="Score (Distance / Différence)")
         self.tree.column("rang", width=60, anchor="center")
         self.tree.column("nom", width=300)
         self.tree.column("score", width=150)
-        self.tree.pack(fill="both", expand=True)
+        self.tree.pack(side="left", fill="both", expand=True)
 
     def _build_sliders(self, parent, labels):
         for idx, label in enumerate(labels):
