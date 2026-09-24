@@ -28,7 +28,6 @@ COL_TAUX_G = "taux_g"
 COL_TAUX_B = "taux_b"
 COL_DENSITE = "densite_contours"
 COL_ISCOLOR = "is_color"
-COL_TEXTURE = "texture"
 COL_LUMINOSITE = "luminosite_moyenne"
 COL_SATURATION = "saturation_moyenne"
 
@@ -66,7 +65,6 @@ class App(tk.Tk):
             "Taux B": tk.DoubleVar(value=0.0),
             "Densité Contours": tk.DoubleVar(value=0.0),
             "IsColor": tk.DoubleVar(value=0.0),
-            "Texture Maison": tk.DoubleVar(value=0.0),
             "Luminosité": tk.DoubleVar(value=0.0),
             "Saturation": tk.DoubleVar(value=0.0),
         }
@@ -167,7 +165,7 @@ class App(tk.Tk):
 
         # Sous-frame Commune
         self.frame_common = ttk.LabelFrame(self.frame_sliders, text="Propriétés visuelles de l'image", padding=10)
-        self._build_sliders(self.frame_common, ["Densité Contours", "IsColor", "Texture Maison", "Luminosité", "Saturation"])
+        self._build_sliders(self.frame_common, ["Densité Contours", "IsColor", "Luminosité", "Saturation"])
         self.frame_common.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=5, pady=5)
 
         # 3. Actions et Résultats
@@ -249,7 +247,6 @@ class App(tk.Tk):
         
         w_dens = self.poids["Densité Contours"].get()
         w_isc = self.poids["IsColor"].get()
-        w_texm = self.poids["Texture Maison"].get()
         w_lum = self.poids["Luminosité"].get()
         w_sat = self.poids["Saturation"].get()
 
@@ -296,8 +293,6 @@ class App(tk.Tk):
                 score_expr += f"\n                       + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))"
             if w_isc > 0:
                 score_expr += f"\n                       + {w_isc} * ABS(NVL(t1.{COL_ISCOLOR},0) - NVL(t2.{COL_ISCOLOR},0))"
-            if w_texm > 0:
-                score_expr += f"\n                       + {w_texm} * ABS(NVL(t1.{COL_TEXTURE},0) - NVL(t2.{COL_TEXTURE},0))"
             if w_lum > 0:
                 score_expr += f"\n                       + {w_lum} * ABS(NVL(t1.{COL_LUMINOSITE},0) - NVL(t2.{COL_LUMINOSITE},0))"
             if w_sat > 0:
@@ -330,8 +325,6 @@ class App(tk.Tk):
                 score_expr += f"\n                       + {w_dens} * NVL(t2.{COL_DENSITE},0)"
             if w_isc > 0:
                 score_expr += f"\n                       + {w_isc} * NVL(t2.{COL_ISCOLOR},0)"
-            if w_texm > 0:
-                score_expr += f"\n                       + {w_texm} * NVL(t2.{COL_TEXTURE},0)"
             if w_lum > 0:
                 score_expr += f"\n                       + {w_lum} * NVL(t2.{COL_LUMINOSITE},0)"
             if w_sat > 0:
