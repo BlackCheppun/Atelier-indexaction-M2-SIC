@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -95,10 +96,17 @@ class App(tk.Tk):
         main_frame = ttk.Frame(self, padding=10)
         main_frame.pack(fill="both", expand=True)
 
-        # 1. Sélection de l'image requête
-        frame_req = ttk.LabelFrame(main_frame, text="1. Image Requête (depuis Oracle)", padding=10)
-        frame_req.pack(fill="x", pady=(0, 10))
+        # 0. Mode de recherche
+        self.var_mode = tk.StringVar(value="compare")
+        frame_mode = ttk.LabelFrame(main_frame, text="Mode de recherche", padding=10)
+        frame_mode.pack(fill="x", pady=(0, 10))
+        ttk.Radiobutton(frame_mode, text="Comparaison avec une image cible", variable=self.var_mode, value="compare").pack(side="left", padx=10)
+        ttk.Radiobutton(frame_mode, text="Recherche Globale (Maximiser les critères cochés)", variable=self.var_mode, value="global").pack(side="left", padx=10)
 
+        # 1. Sélection de l'image requête
+        frame_req = ttk.LabelFrame(main_frame, text="1. Image Requête (depuis Oracle, pour comparaison)", padding=10)
+        frame_req.pack(fill="x", pady=(0, 10))
+        
         ttk.Label(frame_req, text="Sélectionnez l'image :").pack(side="left", padx=(0, 10))
         self.cb_images = ttk.Combobox(frame_req, textvariable=self.var_image_req, state="readonly", width=40)
         self.cb_images.pack(side="left")
@@ -158,9 +166,6 @@ class App(tk.Tk):
             return
 
         image_req = self.var_image_req.get()
-        if not image_req:
-            messagebox.showwarning("Attention", "Veuillez sélectionner une image requête.")
-            return
 
         w_color = self.poids["Oracle Couleur"].get()
         w_texture = self.poids["Oracle Texture"].get()
@@ -187,47 +192,79 @@ class App(tk.Tk):
         
         # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
         # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
-        if w_color > 0 or w_texture > 0 or w_shape > 0 or w_loc > 0:
-            score_expr = f"ORDSYS.ORDImageSignature.evaluateScore(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')"
-        else:
-            score_expr = "0"
-        
-        if w_hr > 0:
-            score_expr += f"\n                       + {w_hr} * bhattacharyya_distance(t1.{COL_HISTO_R}, t2.{COL_HISTO_R})"
-        if w_hg > 0:
-            score_expr += f"\n                       + {w_hg} * bhattacharyya_distance(t1.{COL_HISTO_G}, t2.{COL_HISTO_G})"
-        if w_hb > 0:
-            score_expr += f"\n                       + {w_hb} * bhattacharyya_distance(t1.{COL_HISTO_B}, t2.{COL_HISTO_B})"
-        if w_dens > 0:
-            score_expr += f"\n                       + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))"
-        if w_isc > 0:
-            score_expr += f"\n                       + {w_isc} * ABS(NVL(t1.{COL_ISCOLOR},0) - NVL(t2.{COL_ISCOLOR},0))"
-        if w_texm > 0:
-            score_expr += f"\n                       + {w_texm} * ABS(NVL(t1.{COL_TEXTURE},0) - NVL(t2.{COL_TEXTURE},0))"
-        if w_lum > 0:
-            score_expr += f"\n                       + {w_lum} * ABS(NVL(t1.{COL_LUMINOSITE},0) - NVL(t2.{COL_LUMINOSITE},0))"
-        if w_sat > 0:
-            score_expr += f"\n                       + {w_sat} * ABS(NVL(t1.{COL_SATURATION},0) - NVL(t2.{COL_SATURATION},0))"
+        mode = self.var_mode.get()
 
-        sql_query = f"""
-            SELECT t2.{COL_NOM} as NOM,
-                   (
-                       {score_expr}
-                   ) AS SCORE
-            FROM {TABLE_NAME} t1, {TABLE_NAME} t2
-            WHERE t1.{COL_NOM} = '{image_req}' 
-              AND t2.{COL_NOM} != '{image_req}'
-            ORDER BY SCORE ASC
-        """
+        if mode == "compare":
+            if not image_req:
+                messagebox.showwarning("Attention", "Veuillez sélectionner une image requête.")
+                return
+
+            if w_color > 0 or w_texture > 0 or w_shape > 0 or w_loc > 0:
+                score_expr = f"ORDSYS.ORDImageSignature.evaluateScore(t1.{COL_SIGNATURE}, t2.{COL_SIGNATURE}, '{oracle_weights}')"
+            else:
+                score_expr = "0"
+            
+            if w_hr > 0:
+                score_expr += f"\n                       + {w_hr} * bhattacharyya_distance(t1.{COL_HISTO_R}, t2.{COL_HISTO_R})"
+            if w_hg > 0:
+                score_expr += f"\n                       + {w_hg} * bhattacharyya_distance(t1.{COL_HISTO_G}, t2.{COL_HISTO_G})"
+            if w_hb > 0:
+                score_expr += f"\n                       + {w_hb} * bhattacharyya_distance(t1.{COL_HISTO_B}, t2.{COL_HISTO_B})"
+            if w_dens > 0:
+                score_expr += f"\n                       + {w_dens} * ABS(NVL(t1.{COL_DENSITE},0) - NVL(t2.{COL_DENSITE},0))"
+            if w_isc > 0:
+                score_expr += f"\n                       + {w_isc} * ABS(NVL(t1.{COL_ISCOLOR},0) - NVL(t2.{COL_ISCOLOR},0))"
+            if w_texm > 0:
+                score_expr += f"\n                       + {w_texm} * ABS(NVL(t1.{COL_TEXTURE},0) - NVL(t2.{COL_TEXTURE},0))"
+            if w_lum > 0:
+                score_expr += f"\n                       + {w_lum} * ABS(NVL(t1.{COL_LUMINOSITE},0) - NVL(t2.{COL_LUMINOSITE},0))"
+            if w_sat > 0:
+                score_expr += f"\n                       + {w_sat} * ABS(NVL(t1.{COL_SATURATION},0) - NVL(t2.{COL_SATURATION},0))"
+
+            sql_query = f"""
+                SELECT t2.{COL_NOM} as NOM,
+                       (
+                           {score_expr}
+                       ) AS SCORE
+                FROM {TABLE_NAME} t1, {TABLE_NAME} t2
+                WHERE t1.{COL_NOM} = '{image_req}' 
+                  AND t2.{COL_NOM} != '{image_req}'
+                ORDER BY SCORE ASC
+            """
+        else:
+            # Mode "Global" : on n'a pas d'image de référence (t1 n'existe pas).
+            # On veut trouver les images qui ont LE PLUS de la caractéristique demandée.
+            score_expr = "0"
+            if w_dens > 0:
+                score_expr += f"\n                       + {w_dens} * NVL(t2.{COL_DENSITE},0)"
+            if w_isc > 0:
+                score_expr += f"\n                       + {w_isc} * NVL(t2.{COL_ISCOLOR},0)"
+            if w_texm > 0:
+                score_expr += f"\n                       + {w_texm} * NVL(t2.{COL_TEXTURE},0)"
+            if w_lum > 0:
+                score_expr += f"\n                       + {w_lum} * NVL(t2.{COL_LUMINOSITE},0)"
+            if w_sat > 0:
+                score_expr += f"\n                       + {w_sat} * NVL(t2.{COL_SATURATION},0)"
+
+            sql_query = f"""
+                SELECT t2.{COL_NOM} as NOM,
+                       (
+                           {score_expr}
+                       ) AS SCORE
+                FROM {TABLE_NAME} t2
+                ORDER BY SCORE DESC
+            """
 
         def work():
             try:
                 self.after(0, lambda: self.status.set("Requête en cours..."))
+                start_time = time.time()
                 self.cursor.execute(sql_query)
                 rows = self.cursor.fetchall()
+                elapsed = time.time() - start_time
                 
                 self.after(0, lambda: self._fill_tree(rows))
-                self.after(0, lambda: self.status.set(f"Recherche terminée ({len(rows)} résultats)."))
+                self.after(0, lambda: self.status.set(f"Recherche terminée en {elapsed:.3f}s ({len(rows)} résultats)."))
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Erreur SQL", str(e)))
                 self.after(0, lambda: self.status.set("Erreur lors de la recherche."))
