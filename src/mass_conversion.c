@@ -89,6 +89,10 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
     double saturation = saturation_moyenne(I_couleur, nrl, nrh, ncl, nch);
     int is_color = image_est_couleur(I_couleur, nrl, nrh, ncl, nch, SEUIL_TAUX_COLORE);
 
+    /* Taux de rouge / vert / bleu : parts normalisees, de somme 1 */
+    double taux_r, taux_g, taux_b;
+    taux_rgb(I_couleur, nrl, nrh, ncl, nch, &taux_r, &taux_g, &taux_b);
+
     /* Generation de la requete SQL */
     char str_hg[2500], str_hr[2500], str_hg_color[2500], str_hb[2500];
     
@@ -115,6 +119,9 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
     fprintf(f_sql, "  TEXTURE = %.6f,\n", contraste);
     fprintf(f_sql, "  LUMINOSITE_MOYENNE = %.6f,\n", luminosite);
     fprintf(f_sql, "  SATURATION_MOYENNE = %.6f,\n", saturation);
+    fprintf(f_sql, "  TAUX_R = %.6f,\n", taux_r);
+    fprintf(f_sql, "  TAUX_G = %.6f,\n", taux_g);
+    fprintf(f_sql, "  TAUX_B = %.6f,\n", taux_b);
     fprintf(f_sql, "  IS_COLOR = %d\n", is_color);
     fprintf(f_sql, "WHERE NOM = '%s';\n\n", nom_db);
 
