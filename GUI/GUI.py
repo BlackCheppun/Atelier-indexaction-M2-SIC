@@ -266,7 +266,7 @@ class App(tk.Tk):
                 elapsed = time.time() - start_time
                 
                 self.after(0, lambda: self._fill_tree(rows))
-                self.after(0, lambda: self.status.set(f"Recherche terminée en {elapsed:.3f}s ({len(rows)} résultats)."))
+                self.after(0, lambda: self.status.set(f"Recherche terminée en {elapsed:.6f}s ({len(rows)} résultats)."))
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Erreur SQL", str(e)))
                 self.after(0, lambda: self.status.set("Erreur lors de la recherche."))
@@ -280,7 +280,7 @@ class App(tk.Tk):
         # Remplissage
         for r in rows:
             # r[0] = Nom, r[1] = Score
-            score_formatted = f"{r[1]:.4f}" if r[1] is not None else "N/A"
+            score_formatted = f"{r[1]:.8f}" if r[1] is not None else "N/A"
             self.tree.insert("", "end", values=(r[0], score_formatted))
 
 
