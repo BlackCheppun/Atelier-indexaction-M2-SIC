@@ -167,11 +167,31 @@ double ecart_type_bmatrix(byte **m, long nrl, long nrh, long ncl, long nch,
 /* Nombre de pixels a 255 dans une image binaire (pixels de contour).       */
 long compter_pixels_contour(byte **contours, long nrl, long nrh, long ncl, long nch);
 
-/* Taux de rouge / vert / bleu NORMALISES : taux_r = R/(R+G+B).
- * Attention : c'est ce qui permet de ne pas considerer une image blanche
- * comme "tres rouge" (piege signale dans le sujet, 2.8).                   */
+/* Taux de rouge / vert / bleu, dans [0,1] et de somme 1.
+ * Pour CHAQUE pixel on calcule sa part de rouge r/(r+g+b), puis on moyenne
+ * sur l'image : chaque pixel pese le meme poids, quelle que soit sa
+ * luminosite. La mesure porte donc sur la surface coloree, pas sur l'energie
+ * lumineuse.
+ * C'est la normalisation par (r+g+b) qui evite le piege du sujet (2.8) :
+ * une image blanche donne 1/3 - 1/3 - 1/3 et non un taux maximal partout.
+ *
+ * ATTENTION : ces taux disent QUELLE couleur domine, pas S'IL Y A de la
+ * couleur. Une image grise et une image coloree mais equilibree donnent
+ * toutes deux 1/3 - 1/3 - 1/3. Toute requete couleur doit donc les croiser
+ * avec image_est_couleur().
+ *
+ * Aucun pixel n'est ecarte, y compris les plus sombres, ou le rapport est
+ * pourtant domine par le bruit de compression -- voir le commentaire de la
+ * fonction dans caracteristiques.c.                                        */
 void taux_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,
               double *taux_r, double *taux_g, double *taux_b);
+
+/* Accesseurs de confort : un seul des trois taux. Ils appellent taux_rgb,
+ * donc parcourent l'image une fois chacun -- preferer taux_rgb si les trois
+ * valeurs sont necessaires.                                                */
+double taux_rouge(rgb8 **image, long nrl, long nrh, long ncl, long nch);
+double taux_vert (rgb8 **image, long nrl, long nrh, long ncl, long nch);
+double taux_bleu (rgb8 **image, long nrl, long nrh, long ncl, long nch);
 
 /* Saturation moyenne (modele HSV simplifie) : (max-min)/max par pixel.
  * Sert a decider si une image est reellement en couleur ou en N&B.         */

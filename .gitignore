@@ -9,10 +9,12 @@ test_couleur
 test_luminance
 test_gris
 test_texture
+test_taux_rgb
 test_couleur.exe
 test_luminance.exe
 test_gris.exe
 test_texture.exe
+test_taux_rgb.exe
 *.o
 *.obj
 

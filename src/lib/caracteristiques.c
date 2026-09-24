@@ -269,14 +269,88 @@ long compter_pixels_contour(byte **contours, long nrl, long nrh, long ncl, long 
     return count;
 }
 
+/* Taux de rouge, de vert et de bleu : pour CHAQUE pixel on calcule la part
+ * de chaque canal, r/(r+g+b), puis on moyenne sur toute l'image.
+ *
+ * Normaliser par (r+g+b) est ce qui repond au piege signale dans le sujet :
+ * une image blanche a R=G=B=255, donc des moyennes brutes maximales sur les
+ * trois canaux, alors qu'elle n'a aucune dominante. Ici elle donne
+ * 1/3 - 1/3 - 1/3, ce qui est la reponse juste.
+ *
+ * Les trois taux somment toujours a 1 : il n'y a que deux informations
+ * independantes, meme si on en stocke trois pour la lisibilite des requetes.
+ *
+ * Chaque pixel pese le meme poids, quelle que soit sa luminosite : un rouge
+ * sombre compte autant qu'un blanc eclatant. C'est un choix -- il mesure la
+ * couleur en surface plutot qu'en energie lumineuse.
+ * CONSEQUENCE A CONNAITRE : les pixels tres sombres sont comptes comme les
+ * autres, alors que leur rapport y est domine par le bruit de compression --
+ * un pixel (3,1,2), noir a l'oeil, compte pour un taux de rouge de 0.50. Sur
+ * une image comportant beaucoup de zones sombres, les taux s'en trouvent
+ * deplaces (jusqu'a 0.07 mesure sur bus1, qui a 38 % de pixels sombres).    */
 void taux_rgb(rgb8 **image, long nrl, long nrh, long ncl, long nch,
               double *taux_r, double *taux_g, double *taux_b)
 {
-    /* TODO : cumuler R, G, B puis diviser chacun par (R+G+B)                */
-    (void)image; (void)nrl; (void)nrh; (void)ncl; (void)nch;
-    if (taux_r) *taux_r = 0.0;
-    if (taux_g) *taux_g = 0.0;
-    if (taux_b) *taux_b = 0.0;
+    double somme_r = 0.0, somme_g = 0.0, somme_b = 0.0;
+    long   nb_pixels;
+    long   i, j;
+
+    nb_pixels = (nrh - nrl + 1) * (nch - ncl + 1);
+    if (nb_pixels <= 0) {
+        if (taux_r) *taux_r = 1.0 / 3.0;
+        if (taux_g) *taux_g = 1.0 / 3.0;
+        if (taux_b) *taux_b = 1.0 / 3.0;
+        return;
+    }
+
+    for (i = nrl; i <= nrh; i++) {
+        for (j = ncl; j <= nch; j++) {
+            double r = (double)image[i][j].r;
+            double g = (double)image[i][j].g;
+            double b = (double)image[i][j].b;
+            double total = r + g + b;
+
+            if (total > 0.0) {
+                somme_r += r / total;
+                somme_g += g / total;
+                somme_b += b / total;
+            } else {
+                /* pixel noir pur : 0/0 n'est pas defini et produirait un NaN
+                   qui contaminerait toute la somme. Aucune dominante : on
+                   compte le neutre. */
+                somme_r += 1.0 / 3.0;
+                somme_g += 1.0 / 3.0;
+                somme_b += 1.0 / 3.0;
+            }
+        }
+    }
+
+    if (taux_r) *taux_r = somme_r / (double)nb_pixels;
+    if (taux_g) *taux_g = somme_g / (double)nb_pixels;
+    if (taux_b) *taux_b = somme_b / (double)nb_pixels;
+}
+
+/* Trois accesseurs de confort. Ils partagent l'implementation ci-dessus :
+ * un seul algorithme, donc aucune divergence possible entre eux.           */
+double taux_rouge(rgb8 **image, long nrl, long nrh, long ncl, long nch)
+{
+    double r, g, b;
+    taux_rgb(image, nrl, nrh, ncl, nch, &r, &g, &b);
+    return r;
+}
+
+double taux_vert(rgb8 **image, long nrl, long nrh, long ncl, long nch)
+{
+    double r, g, b;
+    taux_rgb(image, nrl, nrh, ncl, nch, &r, &g, &b);
+    return g;
+}
+
+double taux_bleu(rgb8 **image, long nrl, long nrh, long ncl, long nch)
+{
+    double r, g, b;
+    taux_rgb(image, nrl, nrh, ncl, nch, &r, &g, &b);
+    return b;
 }
 
 /* Saturation moyenne au sens HSV : moyenne de (max-min)/max sur les pixels
