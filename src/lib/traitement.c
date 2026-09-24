@@ -1,4 +1,3 @@
-/* traitement.c -- filtrage, gradient et conversions */
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -14,14 +13,12 @@ int MASQUE_MOYENNEUR[3][3] = {
     {1, 1, 1}
 };
 
-/* Gradient horizontal (derivee selon x) */
 int MASQUE_SOBEL_X[3][3] = {
     {-1, 0, 1},
     {-2, 0, 2},
     {-1, 0, 1}
 };
 
-/* Gradient vertical (derivee selon y) */
 int MASQUE_SOBEL_Y[3][3] = {
     {-1, -2, -1},
     { 0,  0,  0},
@@ -34,7 +31,6 @@ byte **produit_convolution(byte **image, long nrl, long nrh, long ncl, long nch,
     byte **newImage;
     newImage = bmatrix(nrl, nrh, ncl, nch);
 
-    /* Traitement des pixels interieurs (en evitant les bords) */
     for (int i = nrl + 1; i <= nrh - 1; i++) {
         for (int j = ncl + 1; j <= nch - 1; j++) {
             int somme = 0;
@@ -50,7 +46,6 @@ byte **produit_convolution(byte **image, long nrl, long nrh, long ncl, long nch,
             }
             somme = abs(somme);
 
-            /* Gestion des debordements */
             if (somme > 255) somme = 255;
             if (somme < 0)   somme = 0;
 
@@ -58,13 +53,11 @@ byte **produit_convolution(byte **image, long nrl, long nrh, long ncl, long nch,
         }
     }
 
-    /* Copie des bords (premiere et derniere ligne) */
     for (int j = ncl; j <= nch; j++) {
         newImage[nrl][j] = image[nrl][j];
         newImage[nrh][j] = image[nrh][j];
     }
 
-    /* Copie des bords (premiere et derniere colonne) */
     for (int i = nrl; i <= nrh; i++) {
         newImage[i][ncl] = image[i][ncl];
         newImage[i][nch] = image[i][nch];
@@ -73,15 +66,12 @@ byte **produit_convolution(byte **image, long nrl, long nrh, long ncl, long nch,
     return newImage;
 }
 
-
-
 int **convolution_signee(byte **image, long nrl, long nrh, long ncl, long nch,
                          int masque[3][3], int diviseur)
 {
     int **res = imatrix(nrl, nrh, ncl, nch);
     int i, j, k, l;
 
-    /* Interieur */
     for (i = nrl + 1; i <= nrh - 1; i++) {
         for (j = ncl + 1; j <= nch - 1; j++) {
             int somme = 0;
@@ -93,11 +83,10 @@ int **convolution_signee(byte **image, long nrl, long nrh, long ncl, long nch,
             if (diviseur != 0) {
                 somme = somme / diviseur;
             }
-            res[i][j] = somme; /* Pas de valeur absolue, pas de saturation */
+            res[i][j] = somme;
         }
     }
 
-    /* Bords : mettre 0 (pas de calcul possible) */
     for (j = ncl; j <= nch; j++) {
         res[nrl][j] = 0;
         res[nrh][j] = 0;
@@ -153,7 +142,7 @@ byte **seuillage_imatrix(int **m, int seuil,
 {
     byte **res = bmatrix(nrl, nrh, ncl, nch);
     int i, j;
-    
+
     for (i = nrl; i <= nrh; i++) {
         for (j = ncl; j <= nch; j++) {
             if (m[i][j] >= seuil) {
@@ -169,12 +158,11 @@ byte **seuillage_imatrix(int **m, int seuil,
 byte **rgb8_vers_gris(rgb8 **image, long nrl, long nrh, long ncl, long nch)
 {
     byte **res = bmatrix(nrl, nrh, ncl, nch);
-    long i, j;   /* long : les bornes NRC sont des long */
+    long i, j;
 
     for (i = nrl; i <= nrh; i++) {
         for (j = ncl; j <= nch; j++) {
-            /* Rec. 709 -- voir le commentaire de traitement.h : ces
-               coefficients reproduisent les .pgm fournis avec la base */
+
             double gris = COEF_LUMA_R * image[i][j].r
                         + COEF_LUMA_G * image[i][j].g
                         + COEF_LUMA_B * image[i][j].b;
@@ -186,7 +174,6 @@ byte **rgb8_vers_gris(rgb8 **image, long nrl, long nrh, long ncl, long nch)
     }
     return res;
 }
-
 
 int **gradient_x(byte **image, long nrl, long nrh, long ncl, long nch)
 {
