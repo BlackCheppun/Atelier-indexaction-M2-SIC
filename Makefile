@@ -19,7 +19,7 @@ NRC_SRC  = NRC/nrio.c NRC/nralloc.c NRC/nrarith.c
 # Notre bibliotheque (code reutilisable de l'equipe)
 LIB_SRC  = src/lib/traitement.c src/lib/caracteristiques.c src/lib/image_io.c
 
-BINAIRES = extraction tp1 tp3 test_couleur test_luminance test_gris test_texture
+BINAIRES = extraction tp1 tp3 test_couleur test_luminance test_gris test_texture test_taux_rgb
 
 all: $(BINAIRES)
 
@@ -42,6 +42,9 @@ test_gris: src/tests/test_gris.c $(LIB_SRC) $(NRC_SRC)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 test_texture: src/tests/test_texture.c $(LIB_SRC) $(NRC_SRC)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+test_taux_rgb: src/tests/test_taux_rgb.c $(LIB_SRC) $(NRC_SRC)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 clean:
