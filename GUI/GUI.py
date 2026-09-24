@@ -233,18 +233,20 @@ class App(tk.Tk):
             """
         else:
             # Mode "Global" : on n'a pas d'image de référence (t1 n'existe pas).
-            # On veut trouver les images qui ont LE PLUS de la caractéristique demandée.
+            # On veut trouver les images qui ont le plus des caractéristiques demandées.
+            # Pour rester cohérent avec le mode comparaison (où le score est une distance, 0 = parfait),
+            # on calcule la distance par rapport à l'idéal théorique (1.0).
             score_expr = "0"
             if w_dens > 0:
-                score_expr += f"\n                       + {w_dens} * NVL(t2.{COL_DENSITE},0)"
+                score_expr += f"\n                       + {w_dens} * ABS(1.0 - NVL(t2.{COL_DENSITE},0))"
             if w_isc > 0:
-                score_expr += f"\n                       + {w_isc} * NVL(t2.{COL_ISCOLOR},0)"
+                score_expr += f"\n                       + {w_isc} * ABS(1.0 - NVL(t2.{COL_ISCOLOR},0))"
             if w_texm > 0:
-                score_expr += f"\n                       + {w_texm} * NVL(t2.{COL_TEXTURE},0)"
+                score_expr += f"\n                       + {w_texm} * ABS(1.0 - NVL(t2.{COL_TEXTURE},0))"
             if w_lum > 0:
-                score_expr += f"\n                       + {w_lum} * NVL(t2.{COL_LUMINOSITE},0)"
+                score_expr += f"\n                       + {w_lum} * ABS(1.0 - NVL(t2.{COL_LUMINOSITE},0))"
             if w_sat > 0:
-                score_expr += f"\n                       + {w_sat} * NVL(t2.{COL_SATURATION},0)"
+                score_expr += f"\n                       + {w_sat} * ABS(1.0 - NVL(t2.{COL_SATURATION},0))"
 
             sql_query = f"""
                 SELECT t2.{COL_NOM} as NOM,
@@ -252,7 +254,7 @@ class App(tk.Tk):
                            {score_expr}
                        ) AS SCORE
                 FROM {TABLE_NAME} t2
-                ORDER BY SCORE DESC
+                ORDER BY SCORE ASC
             """
 
         def work():

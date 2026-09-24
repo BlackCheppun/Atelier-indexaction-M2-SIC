@@ -84,7 +84,8 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
      * Donc la densite reste un taux ou le count absolu. Je vais formater le taux. */
     double densite = (double)nb_pixels_contour / (double)nb_pixels;
 
-    double luminosite = moyenne_bmatrix(I_gris, nrl, nrh, ncl, nch);
+    double luminosite = normaliser_luminance(I_gris, nrl, nrh, ncl, nch);
+    double contraste = normaliser_contraste(I_gris, nrl, nrh, ncl, nch);
     double saturation = saturation_moyenne(I_couleur, nrl, nrh, ncl, nch);
     int is_color = image_est_couleur(I_couleur, nrl, nrh, ncl, nch, SEUIL_TAUX_COLORE);
 
@@ -111,7 +112,7 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
     fprintf(f_sql, "  HISTO_G = HISTO_VARRAY(%s),\n", str_hg_color);
     fprintf(f_sql, "  HISTO_B = HISTO_VARRAY(%s),\n", str_hb);
     fprintf(f_sql, "  DENSITE_CONTOURS = %.6f,\n", densite);
-    fprintf(f_sql, "  TEXTURE = 0,\n");
+    fprintf(f_sql, "  TEXTURE = %.6f,\n", contraste);
     fprintf(f_sql, "  LUMINOSITE_MOYENNE = %.6f,\n", luminosite);
     fprintf(f_sql, "  SATURATION_MOYENNE = %.6f,\n", saturation);
     fprintf(f_sql, "  IS_COLOR = %d\n", is_color);
