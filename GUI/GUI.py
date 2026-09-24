@@ -43,6 +43,7 @@ class App(tk.Tk):
 
         # Variables pour la sélection
         self.var_image_req = tk.StringVar()
+        self.var_dataset = tk.StringVar(value="toutes")
         self.images_list = []
 
         # Variables des poids (Sliders)
@@ -79,7 +80,14 @@ class App(tk.Tk):
 
     def _fetch_images(self) -> None:
         try:
-            self.cursor.execute(f"SELECT {COL_NOM} FROM {TABLE_NAME} ORDER BY {COL_NOM}")
+            dataset = self.var_dataset.get()
+            where_clause = ""
+            if dataset == "10":
+                where_clause = "WHERE REGEXP_LIKE(nom, '^[a-zA-Z]+')"
+            elif dataset == "500":
+                where_clause = "WHERE REGEXP_LIKE(nom, '^[0-9]+')"
+
+            self.cursor.execute(f"SELECT {COL_NOM} FROM {TABLE_NAME} {where_clause} ORDER BY {COL_NOM}")
             rows = self.cursor.fetchall()
             self.images_list = [r[0] for r in rows]
             self.after(0, self._update_cb_images)
@@ -95,6 +103,13 @@ class App(tk.Tk):
     def _build_ui(self) -> None:
         main_frame = ttk.Frame(self, padding=10)
         main_frame.pack(fill="both", expand=True)
+
+        # -1. Dataset
+        frame_ds = ttk.LabelFrame(main_frame, text="Ensemble de données (Base d'images)", padding=10)
+        frame_ds.pack(fill="x", pady=(0, 10))
+        ttk.Radiobutton(frame_ds, text="Toutes (510 images)", variable=self.var_dataset, value="toutes", command=self._fetch_images).pack(side="left", padx=10)
+        ttk.Radiobutton(frame_ds, text="Les 10 images (arbres, bus, etc.)", variable=self.var_dataset, value="10", command=self._fetch_images).pack(side="left", padx=10)
+        ttk.Radiobutton(frame_ds, text="Les 500 images (1 à 500)", variable=self.var_dataset, value="500", command=self._fetch_images).pack(side="left", padx=10)
 
         # 0. Mode de recherche
         self.var_mode = tk.StringVar(value="compare")
@@ -134,9 +149,11 @@ class App(tk.Tk):
         
         ttk.Button(frame_actions, text="Rechercher", command=self._search).pack(side="left")
         
-        self.tree = ttk.Treeview(main_frame, columns=("nom", "score"), show="headings")
+        self.tree = ttk.Treeview(main_frame, columns=("rang", "nom", "score"), show="headings")
+        self.tree.heading("rang", text="Rang")
         self.tree.heading("nom", text="Image")
         self.tree.heading("score", text="Score (Distance / Différence)")
+        self.tree.column("rang", width=60, anchor="center")
         self.tree.column("nom", width=300)
         self.tree.column("score", width=150)
         self.tree.pack(fill="both", expand=True)
@@ -192,6 +209,13 @@ class App(tk.Tk):
         
         # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
         # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
+        dataset = self.var_dataset.get()
+        filter_t2 = ""
+        if dataset == "10":
+            filter_t2 = "AND REGEXP_LIKE(t2.nom, '^[a-zA-Z]+')"
+        elif dataset == "500":
+            filter_t2 = "AND REGEXP_LIKE(t2.nom, '^[0-9]+')"
+
         mode = self.var_mode.get()
 
         if mode == "compare":
@@ -229,6 +253,7 @@ class App(tk.Tk):
                 FROM {TABLE_NAME} t1, {TABLE_NAME} t2
                 WHERE t1.{COL_NOM} = '{image_req}' 
                   AND t2.{COL_NOM} != '{image_req}'
+                  {filter_t2}
                 ORDER BY SCORE ASC
             """
         else:
@@ -247,6 +272,8 @@ class App(tk.Tk):
                 score_expr += f"\n                       + {w_lum} * ABS(1.0 - NVL(t2.{COL_LUMINOSITE},0))"
             if w_sat > 0:
                 score_expr += f"\n                       + {w_sat} * ABS(1.0 - NVL(t2.{COL_SATURATION},0))"
+            
+            where_global = filter_t2.replace("AND", "WHERE", 1) if filter_t2 else ""
 
             sql_query = f"""
                 SELECT t2.{COL_NOM} as NOM,
@@ -254,6 +281,7 @@ class App(tk.Tk):
                            {score_expr}
                        ) AS SCORE
                 FROM {TABLE_NAME} t2
+                {where_global}
                 ORDER BY SCORE ASC
             """
 
@@ -278,10 +306,10 @@ class App(tk.Tk):
         for item in self.tree.get_children():
             self.tree.delete(item)
         # Remplissage
-        for r in rows:
+        for i, r in enumerate(rows, 1):
             # r[0] = Nom, r[1] = Score
             score_formatted = f"{r[1]:.8f}" if r[1] is not None else "N/A"
-            self.tree.insert("", "end", values=(r[0], score_formatted))
+            self.tree.insert("", "end", values=(f"#{i}", r[0], score_formatted))
 
 
 if __name__ == "__main__":
