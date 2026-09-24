@@ -78,10 +78,7 @@ void traiter_image(FILE *f_sql, const char *chemin, const char *nom_fichier) {
     contours = seuillage_imatrix(norme, SEUIL_CONTOUR, nrl, nrh, ncl, nch);
 
     long nb_pixels_contour = compter_pixels_contour(contours, nrl, nrh, ncl, nch);
-    /* On laisse la densite de contour en double (taux), ou bien on met le nombre de pixels.
-     * Si l'utilisateur veut aussi le vrai nombre de pixels pour la densite, on modifie.
-     * L'utilisateur a precise : "pour les valeurs de l'histogramme, je veux avoir le vrai nombre de pixel" 
-     * Donc la densite reste un taux ou le count absolu. Je vais formater le taux. */
+
     double densite = (double)nb_pixels_contour / (double)nb_pixels;
 
     double luminosite = normaliser_luminance(I_gris, nrl, nrh, ncl, nch);

@@ -81,24 +81,7 @@ byte **produit_convolution(byte **image, long nrl, long nrh, long ncl, long nch,
     return newImage;
 }
 
-byte **binarisation(byte **image, int seuil,
-                    long nrl, long nrh, long ncl, long nch)
-{
-    byte **newImage;
-    newImage = bmatrix(nrl, nrh, ncl, nch);
 
-    for (int i = nrl; i <= nrh; i++) {
-        for (int j = ncl; j <= nch; j++) {
-            int current_pixel = (int)image[i][j];
-            if (current_pixel < seuil) {
-                newImage[i][j] = (byte)0;
-            } else {
-                newImage[i][j] = (byte)255;
-            }
-        }
-    }
-    return newImage;
-}
 
 /* ==========================================================================
  *  [A FAIRE] squelettes a completer
@@ -216,10 +199,6 @@ byte **rgb8_vers_gris(rgb8 **image, long nrl, long nrh, long ncl, long nch)
     return res;
 }
 
-byte **filtre_moyenneur(byte **image, long nrl, long nrh, long ncl, long nch)
-{
-    return produit_convolution(image, nrl, nrh, ncl, nch, MASQUE_MOYENNEUR, 9);
-}
 
 int **gradient_x(byte **image, long nrl, long nrh, long ncl, long nch)
 {

@@ -251,7 +251,6 @@ class App(tk.Tk):
         w_sat = self.poids["Saturation"].get()
 
         # Construction de la requête SQL (Sélection directe)
-        # On calcule une distance : 0 est identique, plus c'est grand moins c'est similaire.
         oracle_weights = (
             f'color="{w_color:.1f}",'
             f'texture="{w_texture:.1f}",'
@@ -259,8 +258,6 @@ class App(tk.Tk):
             f'location="{w_loc:.1f}"'
         )
         
-        # NOTE: Si les colonnes maison n'existent pas encore dans la table, cette requête échouera.
-        # Les valeurs absolues (ABS) mesurent la différence entre l'image requête (t1) et les autres (t2).
         dataset = self.var_dataset.get()
         filter_t2 = ""
         if dataset == "10":
@@ -310,9 +307,6 @@ class App(tk.Tk):
                 ORDER BY SCORE ASC
             """
         else:
-            # Mode "Global" : on n'a pas d'image de référence (t1 n'existe pas).
-            # On cherche les images qui MAXIMISENT la somme pondérée des caractéristiques.
-            # Plus le score est haut, plus l'image correspond aux critères choisis.
             score_expr = "0"
             if w_tr > 0:
                 score_expr += f"\n                       + {w_tr} * NVL(t2.{COL_TAUX_R},0)"
