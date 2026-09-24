@@ -198,11 +198,15 @@ byte **seuillage_imatrix(int **m, int seuil,
 byte **rgb8_vers_gris(rgb8 **image, long nrl, long nrh, long ncl, long nch)
 {
     byte **res = bmatrix(nrl, nrh, ncl, nch);
-    int i, j;
-    
+    long i, j;   /* long : les bornes NRC sont des long */
+
     for (i = nrl; i <= nrh; i++) {
         for (j = ncl; j <= nch; j++) {
-            double gris = 0.299 * image[i][j].r + 0.587 * image[i][j].g + 0.114 * image[i][j].b;
+            /* Rec. 709 -- voir le commentaire de traitement.h : ces
+               coefficients reproduisent les .pgm fournis avec la base */
+            double gris = COEF_LUMA_R * image[i][j].r
+                        + COEF_LUMA_G * image[i][j].g
+                        + COEF_LUMA_B * image[i][j].b;
             int gris_int = (int)round(gris);
             if (gris_int > 255) gris_int = 255;
             if (gris_int < 0) gris_int = 0;
